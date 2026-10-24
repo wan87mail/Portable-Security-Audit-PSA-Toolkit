@@ -1,0 +1,17 @@
+__pycache__/
+*.py[co]
+.pytest_cache/
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+*.spec.bak
+
+# Generated on the drive at run time
+reports/*
+!reports/.gitkeep
+logs/*
+!logs/.gitkeep
+config/local.toml
+checksums/manifest.json
