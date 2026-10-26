@@ -24,6 +24,8 @@ from psatoolkit.core.privileges import elevation_help
 from psatoolkit.core.session import SessionOutcome, Toolkit
 from psatoolkit.core.stop import StopToken
 from psatoolkit.core.validation import ValidationError, parse_ports
+from psatoolkit.core.config import SUPPORTED_REPORT_FORMATS
+from psatoolkit.reporting import regenerate, verify_report_folder
 from psatoolkit.reporting.json_report import verify_json_report
 
 EXIT_OK, EXIT_ERROR, EXIT_USAGE, EXIT_UNAUTHORIZED, EXIT_INTEGRITY, EXIT_STOPPED = 0, 1, 2, 3, 4, 130
@@ -251,9 +253,39 @@ def cmd_verify(tk: Toolkit, args: argparse.Namespace) -> int:
 
 
 def cmd_verify_report(tk: Toolkit, args: argparse.Namespace) -> int:
-    result = verify_json_report(Path(args.path))
-    _print(f"{result.path}: {result.message}")
-    return EXIT_OK if result.ok else EXIT_INTEGRITY
+    path = Path(args.path)
+    if path.is_dir():
+        result = verify_report_folder(path)
+        _print(f"{path}:")
+        for line in result.lines:
+            _print(f"  {line}")
+        _print("Report folder integrity " + ("PASSED" if result.ok else "FAILED"))
+        return EXIT_OK if result.ok else EXIT_INTEGRITY
+    single = verify_json_report(path)
+    _print(f"{single.path}: {single.message}")
+    return EXIT_OK if single.ok else EXIT_INTEGRITY
+
+
+def cmd_export_report(tk: Toolkit, args: argparse.Namespace) -> int:
+    """Re-render HTML/PDF/CSV from a verified report.json into an operator-chosen folder."""
+    source = Path(args.report)
+    if source.is_dir():
+        source = source / "report.json"
+    formats = [f.strip().lower() for f in args.formats.split(",") if f.strip()]
+    bad = [f for f in formats if f not in SUPPORTED_REPORT_FORMATS]
+    if bad:
+        _err(f"Unsupported format(s): {', '.join(bad)}. Choose from {', '.join(SUPPORTED_REPORT_FORMATS)}.")
+        return EXIT_USAGE
+    try:
+        out = regenerate(source, formats, Path(args.dest))
+    except (OSError, ValueError) as exc:
+        _err(f"Export failed: {exc}")
+        return EXIT_INTEGRITY if isinstance(exc, ValueError) else EXIT_ERROR
+    for p in out.files:
+        _print(f"Exported: {p}")
+    for err in out.errors:
+        _err(err)
+    return EXIT_ERROR if out.errors else EXIT_OK
 
 
 def cmd_verify_log(tk: Toolkit, args: argparse.Namespace) -> int:
@@ -327,8 +359,12 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--ports")
 
     sub.add_parser("verify", help="verify tool integrity against checksums/manifest.json")
-    vr = sub.add_parser("verify-report", help="verify a report.json integrity hash")
+    vr = sub.add_parser("verify-report", help="verify a report folder (SHA256SUMS + canonical hash) or report.json")
     vr.add_argument("path")
+    ex = sub.add_parser("export-report", help="re-render a verified report into another folder/format")
+    ex.add_argument("report", help="report folder or report.json")
+    ex.add_argument("dest", help="destination folder (e.g. a share for the IT administrator)")
+    ex.add_argument("--formats", default="html,pdf,csv", help="comma-separated: json,html,pdf,csv")
     vl = sub.add_parser("verify-log", help="verify an audit log hash chain")
     vl.add_argument("path")
     r = sub.add_parser("reports", help="list previous reports")
@@ -340,6 +376,7 @@ def build_parser() -> argparse.ArgumentParser:
 COMMANDS = {
     "gui": cmd_gui, "info": cmd_info, "modules": cmd_modules, "audit": cmd_audit,
     "preview-scan": cmd_preview_scan, "verify": cmd_verify, "verify-report": cmd_verify_report,
+    "export-report": cmd_export_report,
     "verify-log": cmd_verify_log, "reports": cmd_reports, "build-manifest": cmd_build_manifest,
 }
 

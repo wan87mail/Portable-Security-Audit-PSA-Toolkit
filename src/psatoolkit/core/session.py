@@ -26,7 +26,8 @@ from psatoolkit.core.safe_exec import CommandRunner
 from psatoolkit.core.stop import StopToken
 from psatoolkit.modules import load_modules
 from psatoolkit.modules.demo import DEMO_HOST
-from psatoolkit.reporting.json_report import report_folder, write_json_report
+from psatoolkit.reporting import write_reports
+from psatoolkit.reporting.json_report import report_folder
 
 log = logging.getLogger(__name__)
 
@@ -123,9 +124,13 @@ class Toolkit:
         try:
             folder = report_folder(output_dir, result)
             outcome.report_folder = folder
-            outcome.report_files.append(
-                write_json_report(result, folder, self.config.reporting.include_raw_evidence))
-            audit.write("report_written", files=[str(p) for p in outcome.report_files])
+            written = write_reports(result, folder, self.config.reporting.formats,
+                                    self.config.reporting.include_raw_evidence)
+            outcome.report_files.extend(written.files)
+            if written.errors:
+                outcome.report_error = "; ".join(written.errors)
+                log.error(outcome.report_error)
+            audit.write("report_written", files=[str(p) for p in outcome.report_files], errors=written.errors)
         except OSError as exc:
             outcome.report_error = f"Report could not be written: {exc}"
             audit.write("report_failed", error=str(exc))

@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:">
+<meta name="referrer" content="no-referrer">
+<title>Security Assessment Report - demo-host.example.internal</title><style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1c2430;--muted:#5b6675;--line:#dde2e8;--accent:#1f4e8c;
+--critical:#7f1d1d;--high:#b91c1c;--medium:#b45309;--low:#1d4ed8;--informational:#4b5563;--ok:#15803d}
+@media (prefers-color-scheme:dark){:root{--bg:#11151b;--card:#1a2029;--ink:#e6e9ee;--muted:#9aa5b4;--line:#2c3440;
+--accent:#7fb0ff;--critical:#f87171;--high:#fb7185;--medium:#fbbf24;--low:#93c5fd;--informational:#cbd5e1;--ok:#4ade80}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:24px 16px 64px}
+a{color:var(--accent)}
+.tw{overflow-x:auto;max-width:100%}
+.grid>*{min-width:0}
+td.nowrap{white-space:nowrap}
+h1{font-size:26px;margin:0 0 4px}h2{font-size:20px;margin:36px 0 12px;padding-bottom:6px;border-bottom:2px solid var(--line)}
+h3{font-size:16px;margin:20px 0 8px}
+.sub{color:var(--muted);margin:0 0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:12px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.demo{background:#fef3c7;color:#78350f;border:1px solid #f59e0b;border-radius:8px;padding:10px 14px;font-weight:600}
+.conf{color:var(--muted);font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:7px 8px;border-bottom:1px solid var(--line);overflow-wrap:break-word}
+th{color:var(--muted);font-weight:600;white-space:nowrap}
+.kv th{width:34%}
+.sev{display:inline-block;min-width:92px;text-align:center;padding:2px 8px;border-radius:999px;font-size:12px;
+font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.03em}
+.sev.critical{background:var(--critical)}.sev.high{background:var(--high)}.sev.medium{background:var(--medium)}
+.sev.low{background:var(--low)}.sev.informational{background:var(--informational)}
+@media (prefers-color-scheme:dark){.sev{color:#11151b}}
+.counts{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.count{border-radius:10px;padding:12px;text-align:center;border:1px solid var(--line);background:var(--card)}
+.count b{display:block;font-size:28px;line-height:1.1}
+.count.critical b{color:var(--critical)}.count.high b{color:var(--high)}.count.medium b{color:var(--medium)}
+.count.low b{color:var(--low)}.count.informational b{color:var(--informational)}
+.posture{font-size:22px;font-weight:700}
+.p0,.p1{color:var(--high)}.p2{color:var(--medium)}.p3{color:var(--low)}.p4{color:var(--ok)}
+.bar{display:flex;height:10px;border-radius:6px;overflow:hidden;background:var(--line);margin-top:10px}
+.bar span{display:block}
+.bar .critical{background:var(--critical)}.bar .high{background:var(--high)}.bar .medium{background:var(--medium)}
+.bar .low{background:var(--low)}.bar .informational{background:var(--informational)}
+details.finding{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--line);border-radius:10px;
+margin:12px 0;padding:0 16px}
+details.finding.critical{border-left-color:var(--critical)}details.finding.high{border-left-color:var(--high)}
+details.finding.medium{border-left-color:var(--medium)}details.finding.low{border-left-color:var(--low)}
+details.finding.informational{border-left-color:var(--informational)}
+details.finding>summary{cursor:pointer;padding:12px 0;font-weight:600;list-style-position:outside}
+details.finding>summary .id{color:var(--muted);font-weight:400;font-size:13px;margin-left:6px}
+pre{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;overflow:auto;font-size:12.5px;
+max-height:360px;white-space:pre-wrap;overflow-wrap:anywhere}
+.tag{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:0 6px;font-size:12px;color:var(--muted)}
+ul.tight{margin:6px 0;padding-left:20px}
+.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:13px;overflow-wrap:anywhere}
+footer{color:var(--muted);font-size:12px;margin-top:40px;text-align:center}
+@media (max-width:640px){.counts{grid-template-columns:repeat(3,1fr)}.kv th{width:42%}th{white-space:normal}
+h1{font-size:22px;overflow-wrap:anywhere}.sev{min-width:64px;font-size:11px}th,td{padding:6px}.card{padding:12px}details.finding{padding:0 12px}}
+@media print{body{background:#fff;color:#000}main{max-width:none;padding:0}.card,details.finding{break-inside:avoid}
+h2{break-before:page}h2.first{break-before:auto}pre{max-height:none}a{color:#000}}
+</style></head>
+<body><main>
+<h1>Security Assessment Report - demo-host.example.internal</h1>
+<p class="sub">Assessment PSA-20261026-235401-AC5CA3 &middot; generated 2026-10-26 23:54:01 UTC &middot;
+<b>Confidential</b>: contains security findings; share only with authorized staff.</p>
+<p class="demo">DEMONSTRATION REPORT: all findings are sample data and do not describe a real system.</p>
+<h2 class="first">Executive summary</h2>
+<div class="grid">
+<div class="card"><div class="conf">Overall security posture</div>
+<div class="posture p2">Elevated risk</div>
+<p>2 high-severity finding(s). 5 of 7 applicable checks
+completed (71% coverage).</p><p><b>Coverage note:</b> Only 71% of applicable checks completed (see Limitations); the real posture may be worse than shown.</p></div>
+<div class="card"><div class="conf">Findings by severity (5 total)</div>
+<div class="counts"><div class="count critical"><b>0</b>Critical</div><div class="count high"><b>2</b>High</div><div class="count medium"><b>2</b>Medium</div><div class="count low"><b>1</b>Low</div><div class="count informational"><b>0</b>Informational</div></div><div class="bar"><span class="high" style="width:40.00%" title="high: 2"></span><span class="medium" style="width:40.00%" title="medium: 2"></span><span class="low" style="width:20.00%" title="low: 1"></span></div></div>
+</div>
+<div class="card"><h3>Most important risks</h3>
+<div class="tw"><table><tr><th>Severity</th><th>Finding</th><th>Risk score</th><th>Status</th></tr><tr><td><span class="sev high">high</span></td><td><a href="#DEMO-WIN-SMB-001-01">SMBv1 server protocol is enabled</a></td><td>7.5</td><td>Confirmed</td></tr><tr><td><span class="sev high">high</span></td><td><a href="#DEMO-LNX-SSH-001-01">SSH permits direct root login with a password</a></td><td>7.5</td><td>Confirmed</td></tr><tr><td><span class="sev medium">medium</span></td><td><a href="#DEMO-WIN-RDP-001-01">Remote Desktop allows connections without Network Level Authentication</a></td><td>5.0</td><td>Confirmed</td></tr><tr><td><span class="sev medium">medium</span></td><td><a href="#DEMO-LNX-PATCH-001-01">Security updates are pending for 3 packages</a></td><td>3.4</td><td>Potential</td></tr><tr><td><span class="sev low">low</span></td><td><a href="#DEMO-SYS-001-01">System volume encryption status could not be determined</a></td><td>0.8</td><td>Inconclusive</td></tr></table></div></div>
+<div class="card"><h3>Key recommendations</h3><ol><li><b>Immediate action:</b> Disable SMBv1 after confirming no legacy clients depend on it: Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol (run by an administrator during a change window, not by this tool). <span class="tag">DEMO-WIN-SMB-001-01</span></li><li><b>Immediate action:</b> Set &#x27;PermitRootLogin no&#x27; (or &#x27;prohibit-password&#x27;) and &#x27;PasswordAuthentication no&#x27; in /etc/ssh/sshd_config.d/, then reload sshd. <span class="tag">DEMO-LNX-SSH-001-01</span></li><li><b>Planned improvements:</b> Require NLA via Group Policy: Computer Configuration &gt; Administrative Templates &gt; Windows Components &gt; Remote Desktop Services &gt; Security &gt; &#x27;Require user authentication for remote connections by using NLA&#x27; = Enabled. <span class="tag">DEMO-WIN-RDP-001-01</span></li><li><b>Planned improvements:</b> Apply updates during a maintenance window: sudo apt update &amp;&amp; sudo apt upgrade. <span class="tag">DEMO-LNX-PATCH-001-01</span></li><li><b>Planned improvements:</b> Confirm the encryption approach with the platform owner; enable LUKS or equivalent where policy requires encryption at rest. <span class="tag">DEMO-SYS-001-01</span></li></ol></div>
+<div class="grid"><div class="card"><h3>Target system</h3><div class="tw"><table class="kv"><tr><th scope="row">Hostname</th><td>demo-host.example.internal</td></tr><tr><th scope="row">Operating system</th><td>Demonstration environment (synthetic) (version demo, build demo)</td></tr><tr><th scope="row">Architecture</th><td>x86_64</td></tr><tr><th scope="row">Role</th><td>Server</td></tr><tr><th scope="row">Privileges during assessment</th><td>Standard user</td></tr><tr><th scope="row">Assessment ID</th><td>PSA-20261026-235401-AC5CA3</td></tr><tr><th scope="row">Assessment mode</th><td>DEMONSTRATION (sample data)</td></tr><tr><th scope="row">Started</th><td>2026-10-26 23:54:01 UTC</td></tr><tr><th scope="row">Completed</th><td>2026-10-26 23:54:01 UTC</td></tr><tr><th scope="row">Duration</th><td>0s</td></tr><tr><th scope="row">Status</th><td>Completed</td></tr><tr><th scope="row">Tool version</th><td>Portable Security Audit 0.6.0</td></tr></table></div></div>
+<div class="card"><h3>Assessment scope and authorization</h3><div class="tw"><table class="kv"><tr><th scope="row">Authorized by (operator)</th><td>Example Operator</td></tr><tr><th scope="row">Organization</th><td>Example Org</td></tr><tr><th scope="row">Authorization reference</th><td>CHG-EXAMPLE-001</td></tr><tr><th scope="row">Scope statement</th><td>Demo only</td></tr><tr><th scope="row">Confirmed at</th><td>2026-10-26 23:54:01 UTC</td></tr><tr><th scope="row">Modules</th><td>demo</td></tr><tr><th scope="row">Remote targets</th><td>None (local host only)</td></tr></table></div></div></div>
+<p class="conf">Automated, read-only assessment. Results do not constitute formal compliance certification.
+"Potential" findings rely on indirect evidence and require manual validation.</p>
+<h2>Remediation roadmap</h2><div class="card"><h3>Immediate action (2)</h3><p class="conf">Critical issues and urgent, confirmed exposure. Address now, or isolate the system.</p><div class="tw"><table><tr><th>Severity</th><th>ID</th><th>Finding</th><th>Action</th></tr><tr><td><span class="sev high">high</span></td><td class="mono nowrap"><a href="#DEMO-WIN-SMB-001-01">DEMO-WIN-SMB-001-01</a></td><td>SMBv1 server protocol is enabled</td><td>Disable SMBv1 after confirming no legacy clients depend on it: Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol (run by an administrator during a change window, not by this tool).</td></tr><tr><td><span class="sev high">high</span></td><td class="mono nowrap"><a href="#DEMO-LNX-SSH-001-01">DEMO-LNX-SSH-001-01</a></td><td>SSH permits direct root login with a password</td><td>Set &#x27;PermitRootLogin no&#x27; (or &#x27;prohibit-password&#x27;) and &#x27;PasswordAuthentication no&#x27; in /etc/ssh/sshd_config.d/, then reload sshd.</td></tr></table></div></div><div class="card"><h3>Short-term action (0)</h3><p class="conf">High-priority weaknesses. Validate and remediate within the next maintenance cycle.</p><p>None.</p></div><div class="card"><h3>Planned improvements (3)</h3><p class="conf">Medium- and low-priority findings. Schedule into regular change windows.</p><div class="tw"><table><tr><th>Severity</th><th>ID</th><th>Finding</th><th>Action</th></tr><tr><td><span class="sev medium">medium</span></td><td class="mono nowrap"><a href="#DEMO-WIN-RDP-001-01">DEMO-WIN-RDP-001-01</a></td><td>Remote Desktop allows connections without Network Level Authentication</td><td>Require NLA via Group Policy: Computer Configuration &gt; Administrative Templates &gt; Windows Components &gt; Remote Desktop Services &gt; Security &gt; &#x27;Require user authentication for remote connections by using NLA&#x27; = Enabled.</td></tr><tr><td><span class="sev medium">medium</span></td><td class="mono nowrap"><a href="#DEMO-LNX-PATCH-001-01">DEMO-LNX-PATCH-001-01</a></td><td>Security updates are pending for 3 packages</td><td>Apply updates during a maintenance window: sudo apt update &amp;&amp; sudo apt upgrade.</td></tr><tr><td><span class="sev low">low</span></td><td class="mono nowrap"><a href="#DEMO-SYS-001-01">DEMO-SYS-001-01</a></td><td>System volume encryption status could not be determined</td><td>Confirm the encryption approach with the platform owner; enable LUKS or equivalent where policy requires encryption at rest.</td></tr></table></div></div><div class="card"><h3>Ongoing monitoring (0)</h3><p class="conf">Informational observations and recurring checks to keep the posture from drifting.</p><p>None.</p><h3>Recurring activities</h3><ul class="tight"><li>Re-run this assessment after remediation and at least monthly.</li><li>Refresh the offline vulnerability snapshot before every engagement.</li><li>Review local administrator and sudo group membership quarterly.</li><li>Confirm patching, antivirus and backup monitoring alerts are reviewed daily.</li><li>Forward security logs to central monitoring and review high-severity events.</li></ul></div>
+<h2>Technical findings</h2>
+<details class="finding high" open id="DEMO-WIN-SMB-001-01">
+<summary><span class="sev high">high</span> SMBv1 server protocol is enabled<span class="id">DEMO-WIN-SMB-001-01</span></summary>
+<div class="tw"><table class="kv"><tr><th scope="row">Severity</th><td>High</td></tr><tr><th scope="row">Status</th><td>Confirmed</td></tr><tr><th scope="row">Confidence</th><td>High</td></tr><tr><th scope="row">Risk score / priority</th><td>7.5 / Immediate action</td></tr><tr><th scope="row">Affected host</th><td>demo-host.example.internal</td></tr><tr><th scope="row">Affected service or configuration</th><td>LanmanServer / SMB 1.0</td></tr><tr><th scope="row">Manual validation required</th><td>No</td></tr><tr><th scope="row">Check</th><td>DEMO-WIN-SMB-001</td></tr><tr><th scope="row">Fingerprint</th><td>ea30ae544177e5fd</td></tr></table></div>
+<h3>Description</h3><p>[DEMO DATA - not from a real system] The SMB 1.0 server component is enabled. SMBv1 lacks modern integrity and encryption protections and is deprecated by Microsoft.</p>
+<h3>Potential impact</h3><p>SMBv1 has been used by wormable malware (e.g. WannaCry via MS17-010). If a related patch is missing, remote code execution may be possible.</p>
+<h3>Why this severity</h3><p>High: configuration directly observed and network-exposed; not Critical because MS17-010 patch status is assessed separately.</p>
+<h3>Recommended remediation</h3><p>Disable SMBv1 after confirming no legacy clients depend on it: Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol (run by an administrator during a change window, not by this tool).</p>
+<h3>How to verify the fix</h3><p class="mono">Get-SmbServerConfiguration | Select EnableSMB1Protocol should return False.</p>
+<h3>References</h3><ul class="tight"><li>CVE: CVE-2017-0144 (CVSS v3.1 8.1, NVD (sample reference))</li><li>BASELINE: MS-SecBaseline: Configure SMB v1 server = Disabled (Microsoft Security Baseline)</li></ul>
+<h3>Evidence: SMB server configuration (sample)</h3><p class="conf">Collected via Get-SmbServerConfiguration at 2026-10-26 23:54:01 UTC</p><pre>{
+  &quot;EnableSMB1Protocol&quot;: true
+}</pre>
+</details>
+<details class="finding high" open id="DEMO-LNX-SSH-001-01">
+<summary><span class="sev high">high</span> SSH permits direct root login with a password<span class="id">DEMO-LNX-SSH-001-01</span></summary>
+<div class="tw"><table class="kv"><tr><th scope="row">Severity</th><td>High</td></tr><tr><th scope="row">Status</th><td>Confirmed</td></tr><tr><th scope="row">Confidence</th><td>High</td></tr><tr><th scope="row">Risk score / priority</th><td>7.5 / Immediate action</td></tr><tr><th scope="row">Affected host</th><td>demo-host.example.internal</td></tr><tr><th scope="row">Affected service or configuration</th><td>OpenSSH server (sshd)</td></tr><tr><th scope="row">Manual validation required</th><td>No</td></tr><tr><th scope="row">Check</th><td>DEMO-LNX-SSH-001</td></tr><tr><th scope="row">Fingerprint</th><td>32ad2829caa2d0df</td></tr></table></div>
+<h3>Description</h3><p>[DEMO DATA - not from a real system] The effective sshd configuration has PermitRootLogin yes and PasswordAuthentication yes.</p>
+<h3>Potential impact</h3><p>Attackers can target the root account directly with password guessing; a successful guess grants full control and bypasses per-user accountability.</p>
+<h3>Why this severity</h3><p>High: directly observed, remotely reachable, targets the most privileged account.</p>
+<h3>Recommended remediation</h3><p>Set &#x27;PermitRootLogin no&#x27; (or &#x27;prohibit-password&#x27;) and &#x27;PasswordAuthentication no&#x27; in /etc/ssh/sshd_config.d/, then reload sshd.</p>
+<h3>How to verify the fix</h3><p class="mono">sudo sshd -T | grep -Ei &#x27;permitrootlogin|passwordauthentication&#x27;</p>
+<h3>References</h3><ul class="tight"><li>BASELINE: CIS Ubuntu Linux: Ensure sshd PermitRootLogin is disabled (CIS Benchmark (title only; content licensed separately))</li></ul>
+<h3>Evidence: Effective sshd settings (sample)</h3><p class="conf">Collected via sshd -T at 2026-10-26 23:54:01 UTC</p><pre>permitrootlogin yes
+passwordauthentication yes</pre>
+</details>
+<details class="finding medium" open id="DEMO-WIN-RDP-001-01">
+<summary><span class="sev medium">medium</span> Remote Desktop allows connections without Network Level Authentication<span class="id">DEMO-WIN-RDP-001-01</span></summary>
+<div class="tw"><table class="kv"><tr><th scope="row">Severity</th><td>Medium</td></tr><tr><th scope="row">Status</th><td>Confirmed</td></tr><tr><th scope="row">Confidence</th><td>High</td></tr><tr><th scope="row">Risk score / priority</th><td>5.0 / Planned improvements</td></tr><tr><th scope="row">Affected host</th><td>demo-host.example.internal</td></tr><tr><th scope="row">Affected service or configuration</th><td>Terminal Services (RDP-Tcp)</td></tr><tr><th scope="row">Manual validation required</th><td>No</td></tr><tr><th scope="row">Check</th><td>DEMO-WIN-RDP-001</td></tr><tr><th scope="row">Fingerprint</th><td>281ed34f9a1bd878</td></tr></table></div>
+<h3>Description</h3><p>[DEMO DATA - not from a real system] RDP is enabled and UserAuthentication = 0, so the logon screen is presented before the client authenticates.</p>
+<h3>Potential impact</h3><p>Unauthenticated users can reach the logon screen, increasing exposure to brute-force attempts and pre-authentication vulnerabilities.</p>
+<h3>Why this severity</h3><p>Medium: weakens an authentication control on a remote service; not High because RDP exposure is limited to the internal network.</p>
+<h3>Recommended remediation</h3><p>Require NLA via Group Policy: Computer Configuration &gt; Administrative Templates &gt; Windows Components &gt; Remote Desktop Services &gt; Security &gt; &#x27;Require user authentication for remote connections by using NLA&#x27; = Enabled.</p>
+<h3>How to verify the fix</h3><p class="mono">reg query &quot;HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp&quot; /v UserAuthentication should show 0x1.</p>
+<h3>References</h3><ul class="tight"><li>CWE: CWE-287 (MITRE CWE: Improper Authentication)</li></ul>
+<h3>Evidence: Registry values (sample)</h3><p class="conf">Collected via reg query ...\RDP-Tcp at 2026-10-26 23:54:01 UTC</p><pre>{
+  &quot;fDenyTSConnections&quot;: 0,
+  &quot;UserAuthentication&quot;: 0
+}</pre>
+</details>
+<details class="finding medium" open id="DEMO-LNX-PATCH-001-01">
+<summary><span class="sev medium">medium</span> Security updates are pending for 3 packages<span class="id">DEMO-LNX-PATCH-001-01</span></summary>
+<div class="tw"><table class="kv"><tr><th scope="row">Severity</th><td>Medium</td></tr><tr><th scope="row">Status</th><td>Potential</td></tr><tr><th scope="row">Confidence</th><td>Medium</td></tr><tr><th scope="row">Risk score / priority</th><td>3.4 / Planned improvements</td></tr><tr><th scope="row">Affected host</th><td>demo-host.example.internal</td></tr><tr><th scope="row">Affected service or configuration</th><td>APT package manager</td></tr><tr><th scope="row">Manual validation required</th><td>Yes</td></tr><tr><th scope="row">Check</th><td>DEMO-LNX-PATCH-001</td></tr><tr><th scope="row">Fingerprint</th><td>95613247f424436a</td></tr></table></div>
+<h3>Description</h3><p>[DEMO DATA - not from a real system] apt reports upgradable packages from the -security pocket. The installed versions may be vulnerable to the issues fixed by these updates.</p>
+<h3>Potential impact</h3><p>Unpatched packages may contain exploitable vulnerabilities.</p>
+<h3>Why this severity</h3><p>Medium/potential: based on package metadata only; individual CVE applicability and exploitability were not confirmed.</p>
+<h3>Recommended remediation</h3><p>Apply updates during a maintenance window: sudo apt update &amp;&amp; sudo apt upgrade.</p>
+<h3>How to verify the fix</h3><p class="mono">apt list --upgradable 2&gt;/dev/null | grep -- -security should return nothing.</p>
+<h3>References</h3><ul class="tight"><li>None</li></ul>
+<h3>Evidence: Upgradable packages (sample)</h3><p class="conf">Collected via apt list --upgradable at 2026-10-26 23:54:01 UTC</p><pre>[
+  &quot;openssl/noble-security 3.0.13-0ubuntu3.5&quot;,
+  &quot;libssl3t64/noble-security 3.0.13-0ubuntu3.5&quot;,
+  &quot;sudo/noble-security 1.9.15p5-3ubuntu5.1&quot;
+]</pre>
+</details>
+<details class="finding low" open id="DEMO-SYS-001-01">
+<summary><span class="sev low">low</span> System volume encryption status could not be determined<span class="id">DEMO-SYS-001-01</span></summary>
+<div class="tw"><table class="kv"><tr><th scope="row">Severity</th><td>Low</td></tr><tr><th scope="row">Status</th><td>Inconclusive</td></tr><tr><th scope="row">Confidence</th><td>Low</td></tr><tr><th scope="row">Risk score / priority</th><td>0.8 / Planned improvements</td></tr><tr><th scope="row">Affected host</th><td>demo-host.example.internal</td></tr><tr><th scope="row">Affected service or configuration</th><td>Disk encryption</td></tr><tr><th scope="row">Manual validation required</th><td>Yes</td></tr><tr><th scope="row">Check</th><td>DEMO-SYS-001</td></tr><tr><th scope="row">Fingerprint</th><td>109dce2d064be18f</td></tr></table></div>
+<h3>Description</h3><p>[DEMO DATA - not from a real system] No LUKS mapping was found for the root filesystem, but the volume may be protected by hardware (SED) or hypervisor-level encryption.</p>
+<h3>Potential impact</h3><p>If the disk is unencrypted, data could be read from a stolen or decommissioned drive.</p>
+<h3>Why this severity</h3><p>Low/inconclusive: absence of evidence is not evidence of absence.</p>
+<h3>Recommended remediation</h3><p>Confirm the encryption approach with the platform owner; enable LUKS or equivalent where policy requires encryption at rest.</p>
+<h3>How to verify the fix</h3><p class="mono">lsblk -o NAME,TYPE,FSTYPE,MOUNTPOINT and the hypervisor/storage console.</p>
+<h3>References</h3><ul class="tight"><li>None</li></ul>
+<h3>Evidence: Block devices (sample)</h3><p class="conf">Collected via lsblk -J at 2026-10-26 23:54:01 UTC</p><pre>{
+  &quot;sda2&quot;: {
+    &quot;fstype&quot;: &quot;ext4&quot;,
+    &quot;mountpoint&quot;: &quot;/&quot;
+  }
+}</pre>
+</details>
+<h2>Checks performed</h2><div class="card"><div class="tw"><table><tr><th>ID</th><th>Check</th><th>Result</th><th>Details</th></tr>
+<tr><td class="mono">DEMO-WIN-SMB-001</td><td>SMBv1 protocol (sample)</td><td>Findings</td><td></td></tr><tr><td class="mono">DEMO-WIN-RDP-001</td><td>Remote Desktop exposure (sample)</td><td>Findings</td><td></td></tr><tr><td class="mono">DEMO-LNX-SSH-001</td><td>SSH root login (sample)</td><td>Findings</td><td></td></tr><tr><td class="mono">DEMO-LNX-PATCH-001</td><td>Pending security updates (sample)</td><td>Findings</td><td></td></tr><tr><td class="mono">DEMO-SYS-001</td><td>Disk encryption (sample)</td><td>Findings</td><td></td></tr><tr><td class="mono">DEMO-ERR-001</td><td>Simulated check failure (sample)</td><td>Error</td><td>RuntimeError: simulated failure to demonstrate fail-soft behaviour</td></tr><tr><td class="mono">DEMO-PRIV-001</td><td>Local security policy export (sample, needs admin)</td><td>Skipped</td><td>Requires administrator/root privileges: Exporting the local security policy requires an elevated session. Run the toolkit with administrative privileges.</td></tr></table></div></div>
+<h2>Limitations</h2><div class="card"><p>Factors that may affect the accuracy or completeness of this assessment.</p>
+<h3>Error</h3><ul class="tight"><li><span class=mono>DEMO-ERR-001</span>: Check failed: RuntimeError: simulated failure to demonstrate fail-soft behaviour</li></ul><h3>Privilege</h3><ul class="tight"><li><span class=mono>DEMO-PRIV-001</span>: Requires administrator/root privileges: Exporting the local security policy requires an elevated session. Run the toolkit with administrative privileges.</li></ul></div>
+<h2>Report integrity</h2><div class="card"><div class="tw"><table class="kv"><tr><th scope="row">Assessment ID</th><td>PSA-20261026-235401-AC5CA3</td></tr><tr><th scope="row">Tool version</th><td>0.6.0</td></tr><tr><th scope="row">Report generated</th><td>2026-10-26 23:54:01 UTC</td></tr><tr><th scope="row">SHA-256 of canonical report contents</th><td>d52cb885fc8b6442769eff2f87464081fb1efbf79aa4254032a484f709636b5f</td></tr><tr><th scope="row">Verification</th><td>PortableSecurityAudit verify-report &lt;report folder&gt;  (checks SHA256SUMS and the canonical hash in report.json)</td></tr></table></div></div>
+<footer>Portable Security Audit 0.6.0 &middot; PSA-20261026-235401-AC5CA3</footer>
+</main></body></html>

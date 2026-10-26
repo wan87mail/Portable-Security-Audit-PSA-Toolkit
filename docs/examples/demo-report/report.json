@@ -2,12 +2,12 @@
   "report_format_version": "1.0",
   "tool": {
     "name": "Portable Security Audit",
-    "version": "0.5.0"
+    "version": "0.6.0"
   },
-  "generated_at": "2026-10-26T23:43:42+00:00",
+  "generated_at": "2026-10-26T23:54:01+00:00",
   "assessment": {
-    "assessment_id": "PSA-20261026-234342-196D32",
-    "tool_version": "0.5.0",
+    "assessment_id": "PSA-20261026-235401-AC5CA3",
+    "tool_version": "0.6.0",
     "mode": "demo",
     "host": {
       "hostname": "demo-host.example.internal",
@@ -27,15 +27,15 @@
       "scope_statement": "Demo only",
       "host": "demo-host.example.internal",
       "method": "demo",
-      "confirmed_at": "2026-10-26T23:43:42+00:00",
+      "confirmed_at": "2026-10-26T23:54:01+00:00",
       "notice_sha256": "bb38a6a22240b1e128c5e571accfca4b1a7a2dc6d5765ee0126f7b95e606d887",
       "remote_scope": []
     },
     "selected_modules": [
       "demo"
     ],
-    "started_at": "2026-10-26T23:43:42+00:00",
-    "finished_at": "2026-10-26T23:43:42+00:00",
+    "started_at": "2026-10-26T23:54:01+00:00",
+    "finished_at": "2026-10-26T23:54:01+00:00",
     "status": "completed",
     "limitations": [
       {
@@ -112,74 +112,74 @@
       "module_id": "demo",
       "title": "SMBv1 protocol (sample)",
       "status": "findings",
-      "started_at": "2026-10-26T23:43:42+00:00",
-      "finished_at": "2026-10-26T23:43:42+00:00",
+      "started_at": "2026-10-26T23:54:01+00:00",
+      "finished_at": "2026-10-26T23:54:01+00:00",
       "message": "",
       "requires_admin": false,
-      "duration_seconds": 0.000369
+      "duration_seconds": 0.000404
     },
     {
       "check_id": "DEMO-WIN-RDP-001",
       "module_id": "demo",
       "title": "Remote Desktop exposure (sample)",
       "status": "findings",
-      "started_at": "2026-10-26T23:43:42+00:00",
-      "finished_at": "2026-10-26T23:43:42+00:00",
+      "started_at": "2026-10-26T23:54:01+00:00",
+      "finished_at": "2026-10-26T23:54:01+00:00",
       "message": "",
       "requires_admin": false,
-      "duration_seconds": 0.000385
+      "duration_seconds": 0.00026
     },
     {
       "check_id": "DEMO-LNX-SSH-001",
       "module_id": "demo",
       "title": "SSH root login (sample)",
       "status": "findings",
-      "started_at": "2026-10-26T23:43:42+00:00",
-      "finished_at": "2026-10-26T23:43:42+00:00",
+      "started_at": "2026-10-26T23:54:01+00:00",
+      "finished_at": "2026-10-26T23:54:01+00:00",
       "message": "",
       "requires_admin": false,
-      "duration_seconds": 0.000208
+      "duration_seconds": 0.000209
     },
     {
       "check_id": "DEMO-LNX-PATCH-001",
       "module_id": "demo",
       "title": "Pending security updates (sample)",
       "status": "findings",
-      "started_at": "2026-10-26T23:43:42+00:00",
-      "finished_at": "2026-10-26T23:43:42+00:00",
+      "started_at": "2026-10-26T23:54:01+00:00",
+      "finished_at": "2026-10-26T23:54:01+00:00",
       "message": "",
       "requires_admin": false,
-      "duration_seconds": 0.000569
+      "duration_seconds": 0.000211
     },
     {
       "check_id": "DEMO-SYS-001",
       "module_id": "demo",
       "title": "Disk encryption (sample)",
       "status": "findings",
-      "started_at": "2026-10-26T23:43:42+00:00",
-      "finished_at": "2026-10-26T23:43:42+00:00",
+      "started_at": "2026-10-26T23:54:01+00:00",
+      "finished_at": "2026-10-26T23:54:01+00:00",
       "message": "",
       "requires_admin": false,
-      "duration_seconds": 0.000492
+      "duration_seconds": 0.000176
     },
     {
       "check_id": "DEMO-ERR-001",
       "module_id": "demo",
       "title": "Simulated check failure (sample)",
       "status": "error",
-      "started_at": "2026-10-26T23:43:42+00:00",
-      "finished_at": "2026-10-26T23:43:42+00:00",
+      "started_at": "2026-10-26T23:54:01+00:00",
+      "finished_at": "2026-10-26T23:54:01+00:00",
       "message": "RuntimeError: simulated failure to demonstrate fail-soft behaviour",
       "requires_admin": false,
-      "duration_seconds": 0.000407
+      "duration_seconds": 0.000104
     },
     {
       "check_id": "DEMO-PRIV-001",
       "module_id": "demo",
       "title": "Local security policy export (sample, needs admin)",
       "status": "skipped",
-      "started_at": "2026-10-26T23:43:42+00:00",
-      "finished_at": "2026-10-26T23:43:42+00:00",
+      "started_at": "2026-10-26T23:54:01+00:00",
+      "finished_at": "2026-10-26T23:54:01+00:00",
       "message": "Requires administrator/root privileges: Exporting the local security policy requires an elevated session. Run the toolkit with administrative privileges.",
       "requires_admin": true,
       "duration_seconds": 0.0
@@ -205,7 +205,7 @@
           "data": {
             "EnableSMB1Protocol": true
           },
-          "collected_at": "2026-10-26T23:43:42+00:00"
+          "collected_at": "2026-10-26T23:54:01+00:00"
         }
       ],
       "references": [
@@ -250,7 +250,7 @@
           "description": "Effective sshd settings (sample)",
           "source": "sshd -T",
           "data": "permitrootlogin yes\npasswordauthentication yes",
-          "collected_at": "2026-10-26T23:43:42+00:00"
+          "collected_at": "2026-10-26T23:54:01+00:00"
         }
       ],
       "references": [
@@ -290,7 +290,7 @@
             "fDenyTSConnections": 0,
             "UserAuthentication": 0
           },
-          "collected_at": "2026-10-26T23:43:42+00:00"
+          "collected_at": "2026-10-26T23:54:01+00:00"
         }
       ],
       "references": [
@@ -331,7 +331,7 @@
             "libssl3t64/noble-security 3.0.13-0ubuntu3.5",
             "sudo/noble-security 1.9.15p5-3ubuntu5.1"
           ],
-          "collected_at": "2026-10-26T23:43:42+00:00"
+          "collected_at": "2026-10-26T23:54:01+00:00"
         }
       ],
       "references": [],
@@ -364,7 +364,7 @@
               "mountpoint": "/"
             }
           },
-          "collected_at": "2026-10-26T23:43:42+00:00"
+          "collected_at": "2026-10-26T23:54:01+00:00"
         }
       ],
       "references": [],
@@ -378,6 +378,6 @@
   ],
   "integrity": {
     "algorithm": "sha256",
-    "canonical_sha256": "25c9e726f8e882ce427e1c6db4bd60088fbbd871c81f5f0c66e2f893a0976a89"
+    "canonical_sha256": "d52cb885fc8b6442769eff2f87464081fb1efbf79aa4254032a484f709636b5f"
   }
 }

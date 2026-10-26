@@ -27,7 +27,12 @@ from psatoolkit.core.privileges import elevation_help
 from psatoolkit.core.session import SessionOutcome, Toolkit
 from psatoolkit.core.stop import StopToken
 from psatoolkit.core.validation import ValidationError, parse_ports, parse_target
-from psatoolkit.reporting.json_report import verify_json_report
+from psatoolkit.reporting import verify_report_folder
+
+
+def primary_file(folder: Path) -> Path:
+    html = folder / "report.html"
+    return html if html.is_file() else folder / "report.json"
 
 SEVERITY_COLOURS = {
     Severity.CRITICAL: "#7f1d1d", Severity.HIGH: "#b91c1c", Severity.MEDIUM: "#b45309",
@@ -246,13 +251,14 @@ class ReportsDialog:
     def _open(self) -> None:
         folder = self._selected()
         if folder:
-            webbrowser.open((folder / "report.json").as_uri())
+            webbrowser.open(primary_file(folder).as_uri())
 
     def _verify(self) -> None:
         folder = self._selected()
         if folder:
-            res = verify_json_report(folder / "report.json")
-            (messagebox.showinfo if res.ok else messagebox.showerror)("Report integrity", res.message, parent=self.win)
+            res = verify_report_folder(folder)
+            (messagebox.showinfo if res.ok else messagebox.showerror)("Report integrity", "\n".join(res.lines),
+                                                                      parent=self.win)
 
 
 # --------------------------------------------------------------------------
@@ -506,8 +512,8 @@ class Dashboard:
         (messagebox.showinfo if report.ok else messagebox.showwarning)("Tool integrity", report.summary())
 
     def open_report(self) -> None:
-        if self.last_outcome and self.last_outcome.report_files:
-            webbrowser.open(self.last_outcome.report_files[0].as_uri())
+        if self.last_outcome and self.last_outcome.report_folder:
+            webbrowser.open(primary_file(self.last_outcome.report_folder).as_uri())
 
     # -- event loop ------------------------------------------------------
     def _poll(self) -> None:

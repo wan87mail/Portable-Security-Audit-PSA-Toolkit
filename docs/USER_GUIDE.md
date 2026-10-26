@@ -62,7 +62,16 @@ logs/audit-PSA-20261024-091500-AB12CD.jsonl                    hash-chained audi
 logs/psa-YYYYMMDD.log                                          application log
 ```
 
-Verify them later with `verify-report <path>` and `verify-log <path>`.
+Open `report.html` first. Give `report.pdf` to management or the audit file,
+and import `findings.csv` into your ticketing or tracking spreadsheet.
+
+Verify them later with `verify-report <report folder>` and `verify-log <path>`.
+To hand a report to someone, use **Export Report** (GUI) or
+`export-report <report folder> <destination>`. Both check the report's
+integrity first and refuse to export a modified report.
+
+The CSV is safe to open in Excel: cells that would start a formula are
+prefixed with an apostrophe.
 
 If the drive is read-only, both reports and logs go to the folder you choose.
 

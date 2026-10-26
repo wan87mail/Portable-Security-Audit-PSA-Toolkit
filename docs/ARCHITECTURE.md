@@ -43,8 +43,8 @@
       └──────┬─────────┘
              │ Finding / CheckResult (core/models.py)
       ┌──────▼──────────────────────┐   ┌──────────────────────────┐
-      │ normalization / scoring     │──▶│ reporting/ (JSON now;    │
-      └─────────────────────────────┘   │ HTML/PDF/CSV in Phase 6) │
+      │ normalization / scoring     │──▶│ reporting/ JSON, HTML,   │
+      └─────────────────────────────┘   │ PDF, CSV + SHA256SUMS    │
                                         └──────────────────────────┘
   Scoring: core/normalize.py, core/scoring.py, core/cvss.py, core/versions.py, core/vulndb.py
   Cross-cutting: core/hostfs.py (read-only filesystem view), core/config.py, core/paths.py, core/logging_setup.py,

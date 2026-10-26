@@ -30,7 +30,7 @@ rate_limit_per_second = 50         # connection attempts per second, 1 - 200
 require_dry_run_preview = true     # show the scan plan before any traffic is sent
 
 [reporting]
-formats = ["json"]                 # Phase 6 adds "html", "pdf", "csv"
+formats = ["json", "html", "pdf", "csv"]   # JSON is always written
 include_raw_evidence = true        # evidence is always redacted
 
 [vulnerability_data]

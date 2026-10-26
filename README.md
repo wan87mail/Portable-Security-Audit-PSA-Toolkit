@@ -15,7 +15,7 @@ and servers you are **authorized** to assess.
 |---|---|
 | **Supported targets** | Windows 10 / 11, Windows Server 2019 / 2022 / 2025, Ubuntu 22.04 / 24.04, other Linux distributions (best-effort) |
 | **Requirements** | Python 3.10 or newer (standard library only, no `pip install` needed to run it). Tkinter is optional, for the GUI. |
-| **Current status** | Phases 1–3 and 5 of 10 complete: 38 read-only checks, risk scoring, offline vulnerability matching. See [Project status](#project-status). |
+| **Current status** | Phases 1–3, 5 and 6 of 10 complete: 38 read-only checks, risk scoring, offline vulnerability matching, HTML/PDF/CSV reports. See [Project status](#project-status). |
 
 ## What it checks
 
@@ -215,7 +215,8 @@ PSA audit                     # real local audit; prompts for name, reference an
 PSA audit --output D:\reports # save reports elsewhere (for a read-only USB drive)
 PSA reports                   # list previous reports
 PSA verify                    # verify tool integrity
-PSA verify-report <report.json>   # verify a report has not been altered
+PSA verify-report <report folder> # verify no report file has been altered
+PSA export-report <report folder> <dest> --formats html,pdf,csv   # copy/re-render for the IT administrator
 PSA verify-log <audit.jsonl>      # verify the audit log hash chain
 PSA preview-scan --target 10.0.5.0/28 --ports 22,443   # dry run; sends NO traffic
 ```
@@ -246,13 +247,17 @@ Each assessment creates its own folder:
 
 ```
 reports/PSA-20261024-091500-AB12CD_<hostname>/
-    report.json            findings, evidence, limitations, authorization details
-    report.json.sha256     file hash (sha256sum format)
+    report.html            readable report: executive summary, roadmap, findings (open this first)
+    report.pdf             the same report for management and audit files
+    findings.csv           one row per finding, with owner / due date / ticket columns for tracking
+    report.json            complete machine-readable results (all other formats are built from it)
+    report.json.sha256     hash of report.json
+    SHA256SUMS             hashes of every file above (sha256sum -c compatible)
 logs/audit-PSA-20261024-091500-AB12CD.jsonl   hash-chained audit trail of the run
 logs/psa-YYYYMMDD.log                         application log
 ```
 
-A complete sample is in [`docs/examples/demo-report/`](docs/examples/demo-report/).
+A complete sample (HTML, PDF, CSV, JSON) is in [`docs/examples/demo-report/`](docs/examples/demo-report/), with its audit log in [`docs/examples/demo-audit-log.jsonl`](docs/examples/demo-audit-log.jsonl).
 
 Every finding contains:
 
@@ -305,7 +310,7 @@ and a warning is logged.
 
 ```bash
 python -m pip install pytest
-python -m pytest                                        # 380+ tests, mocked; no system changes
+python -m pytest                                        # 390+ tests, mocked; no system changes
 xvfb-run -a python -m pytest tests/test_gui_smoke.py    # GUI test on Linux (needs python3-tk)
 ```
 
@@ -342,7 +347,7 @@ PortableSecurityAudit/
 │   ├── core/                    engine, authorization, safe command runner, validation,
 │   │                            OS detection, config, logging, integrity, redaction
 │   ├── modules/                 assessment modules (system_info, demo; more in later phases)
-│   └── reporting/               report writers (JSON now; HTML/PDF/CSV in Phase 6)
+│   └── reporting/               report writers (JSON, HTML, PDF, CSV) and report integrity
 ├── tests/                       automated tests
 ├── docs/                        architecture, user guide, developer guide, phases, examples
 ├── vulndata/                    offline vulnerability snapshot for Module E (you build it; see docs/VULNDATA.md)
@@ -369,7 +374,7 @@ More detail:
 | 3 | Windows and Linux read-only security checks | ✅ Done |
 | 4 | Controlled network assessment | Not included in this build |
 | 5 | Risk scoring and vulnerability data (CVE/CVSS) | ✅ Done |
-| 6 | HTML, PDF and CSV reports | ⏳ Planned |
+| 6 | HTML, PDF and CSV reports | ✅ Done |
 | 7 | Security baselines and expanded demo | ⏳ Planned |
 | 8 | Standalone Windows `.exe` and Linux build | ⏳ Planned |
 | 9–10 | Security review, final documentation, release checklist | ⏳ Planned |

@@ -52,7 +52,7 @@ class NetworkConfig:
 
 @dataclass
 class ReportingConfig:
-    formats: list[str] = field(default_factory=lambda: ["json"])
+    formats: list[str] = field(default_factory=lambda: ["json", "html", "pdf", "csv"])
     include_raw_evidence: bool = True
 
 

@@ -7,7 +7,7 @@
 | 3 | Windows (Module B) and Linux (Module C) read-only checks; Module A inventory | **Done** |
 | 4 | Module D controlled network assessment | Not included in this build |
 | 5 | Finding normalisation, risk scoring, Module E vulnerability data (offline CVE/CVSS snapshots) | **Done** |
-| 6 | HTML, PDF, CSV reports; executive summary; remediation roadmap | Planned |
+| 6 | HTML, PDF, CSV reports; executive summary; remediation roadmap | **Done** |
 | 7 | Module F baselines and custom baseline import; expanded demo and test checklists | Planned |
 | 8 | PyInstaller Windows `.exe`, Linux frozen build, USB preparation scripts | Planned |
 | 9 | Security, dependency and usability review | Planned |
@@ -80,6 +80,32 @@ Validation on real data: the converter processed the full OSV Debian export
 reported as not affected by two real Ubuntu advisories, and a simulated older
 Debian 12 openssl matched 55 advisories, recommending the highest fixed version.
 
+## Phase 6 deliverables
+
+| File | Purpose |
+|---|---|
+| `src/psatoolkit/reporting/view.py` | Format-independent view: identification, scope, top risks, key recommendations, roadmap, limitations |
+| `src/psatoolkit/reporting/html_report.py` | Self-contained HTML: no JavaScript, strict CSP, escaped content, print and dark-mode styles, phone layout |
+| `src/psatoolkit/reporting/pdfgen.py` | Dependency-free PDF 1.4 writer (core fonts with AFM metrics, word wrap, tables, Flate, page numbers) |
+| `src/psatoolkit/reporting/pdf_report.py` | PDF report for management and audit files |
+| `src/psatoolkit/reporting/csv_report.py` | Findings CSV with remediation-tracking columns and formula-injection protection |
+| `src/psatoolkit/reporting/__init__.py` | Writes all formats, `SHA256SUMS`, folder verification, re-export from a verified report.json |
+
+New CLI commands: `verify-report <folder>` (checks `SHA256SUMS` and the
+canonical hash) and `export-report <folder> <dest> --formats html,pdf,csv`.
+The GUI opens the HTML report, and the report viewer verifies whole folders.
+
+Every format is rendered from the same integrity-checked `report.json`; a
+failure in one format is reported without losing the others.
+
+## Known limitations after Phase 6
+
+- The PDF uses the standard PDF fonts, so characters outside Windows-1252
+  (e.g. CJK, emoji) appear as "?". The HTML and JSON keep full Unicode.
+- PDFs are not tagged for accessibility; use the HTML report with a screen reader.
+- The HTML was checked in Chromium (desktop, and phone-width dark mode); other
+  browsers have not been tested.
+
 ## Known limitations after Phase 5
 
 - Matching is version-based. Results are *potential*: reachability of the
@@ -117,7 +143,6 @@ Debian 12 openssl matched 55 advisories, recommending the highest fixed version.
 
 - No network assessment module is included in this build. "Run Network
   Assessment" says so when pressed; target configuration still works.
-- Reports are JSON only; HTML/PDF/CSV arrive in Phase 6.
 - The GUI was tested on Linux under Xvfb (Tk 9.0). It has not yet been tested
   on a physical Windows desktop; that is part of Phase 8/9 testing.
 - Windows-specific code paths (`IsUserAnAdmin`, `GetTickCount64`, System32
