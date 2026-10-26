@@ -41,15 +41,13 @@ and servers you are **authorized** to assess.
 **Option A: download a ZIP (no Git needed)**
 
 1. Open the repository page on GitHub.
-2. Use the branch selector to choose the branch that contains the toolkit.
-3. Click **Code → Download ZIP** and extract it, for example to `C:\PortableSecurityAudit`.
+2. Click **Code → Download ZIP** and extract it, for example to `C:\PortableSecurityAudit`.
 
 **Option B: clone with Git**
 
 ```bash
 git clone https://github.com/wan87mail/Claude-project-1.git PortableSecurityAudit
 cd PortableSecurityAudit
-git checkout ccr-784a2201-hqxblo      # branch that contains the toolkit (until it is merged)
 ```
 
 All source code, configuration, documentation, tests and the example report
