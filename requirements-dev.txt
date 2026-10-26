@@ -1,0 +1,2 @@
+# Development and test dependencies only. The runtime uses the standard library.
+pytest>=8,<10
