@@ -4,7 +4,7 @@
 |---|---|---|
 | 1 | Architecture, limitations, project structure | **Done** |
 | 2 | Portable shell, authorization workflow, engine, GUI/CLI, JSON report, integrity, demo mode | **Done** |
-| 3 | Windows (Module B) and Linux (Module C) read-only checks; Module A inventory | Planned |
+| 3 | Windows (Module B) and Linux (Module C) read-only checks; Module A inventory | **Done** |
 | 4 | Module D controlled network assessment (rate-limited TCP connect, TLS checks, optional Nmap) | Planned |
 | 5 | Finding normalisation, risk scoring, Module E vulnerability data (offline CVE/CVSS snapshots, optional Greenbone) | Planned |
 | 6 | HTML, PDF, CSV reports; executive summary; remediation roadmap | Planned |
@@ -40,11 +40,47 @@
 | `scripts/build_manifest.py` | Drive-preparation integrity manifest |
 | `tests/` | 200+ automated tests |
 
-## Known limitations after Phase 2
+## Phase 3 deliverables
 
-- Only Module A asset identification has live checks. Windows/Linux audit
-  checks arrive in Phase 3, and the network scanner in Phase 4. "Run Network
-  Assessment" says so when it is pressed, and target configuration already works.
+| File | Purpose |
+|---|---|
+| `src/psatoolkit/modules/system_info.py` | Module A: interfaces/connections, listening ports, exposed risky services, software inventory |
+| `src/psatoolkit/modules/windows_audit.py` | Module B: 16 checks (firewall, Defender, SMB, RDP, UAC, password/lockout, accounts, admins, patching, BitLocker, services, service ACLs, LSA/NTLM/WDigest/LLMNR, SCHANNEL, certificates, audit policy) |
+| `src/psatoolkit/modules/linux_audit.py` | Module C: 15 checks (updates, SSH, firewall, privileged accounts, sudo, shadow flags, PAM policy, world-writable, sensitive files, SUID/SGID, services, encryption, AppArmor/SELinux, sysctl, certificates) |
+| `src/psatoolkit/modules/certificates.py` | Shared certificate expiry/algorithm evaluation |
+| `src/psatoolkit/modules/_common.py` | PowerShell JSON queries, registry reads, `/proc/net` socket parsing, references |
+| `src/psatoolkit/core/hostfs.py` | Read-only filesystem view (no write methods, never follows symlinks, rootable for tests) |
+| `scripts/gen_checks_doc.py` | Generates [CHECKS.md](CHECKS.md) from the code; a test fails if it is stale |
+| `tests/fakes.py` | Fake command runner (still enforces the read-only policy) and in-memory filesystem |
+| `docs/TEST_CHECKLIST.md` | Manual verification checklist for real Windows and Linux hosts |
+
+Engine additions: `ctx.note()` explains passed checks in the report, and
+`ctx.limitation()` records reduced coverage (e.g. "run as root for sshd -T")
+without skipping the check.
+
+## Known limitations after Phase 3
+
+- **Windows checks have not yet run on a real Windows host.** They are tested
+  against mocked PowerShell output (55 tests, and every script is verified
+  against the read-only policy). Work through
+  [TEST_CHECKLIST.md](TEST_CHECKLIST.md) on Windows 10/11 and Server
+  2019/2022/2025 before field use.
+- `net accounts` (WIN-ACCT-001) is parsed in English only; other display
+  languages produce a *skipped* result with an explanation.
+- Patch checks are offline: Windows infers missing updates from install dates;
+  Linux uses the local package cache (the tool never runs `apt update`).
+  Catalogue-based CVE matching arrives in Phase 5.
+- Linux process names for listening sockets owned by other users, `sshd -T`,
+  sudoers, `/etc/shadow` flags and firewall rule sets need root.
+- Filesystem sweeps (LNX-PERM-001, LNX-SUID-001) can take minutes on large
+  servers with cold caches; each has a 600-second budget.
+- Inside containers, systemd service and disk encryption checks are skipped
+  (they describe the host, not the container).
+
+## Known limitations after Phase 2 (still applicable)
+
+- The network scanner arrives in Phase 4. "Run Network Assessment" says so
+  when it is pressed; target configuration already works.
 - Reports are JSON only; HTML/PDF/CSV arrive in Phase 6.
 - The GUI was tested on Linux under Xvfb (Tk 9.0). It has not yet been tested
   on a physical Windows desktop; that is part of Phase 8/9 testing.

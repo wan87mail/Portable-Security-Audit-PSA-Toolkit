@@ -20,6 +20,7 @@ from typing import Any, Callable, Iterable
 from psatoolkit import __version__
 from psatoolkit.core.authorization import AuthorizationError, AuthorizationRecord, TargetScope
 from psatoolkit.core.config import AppConfig
+from psatoolkit.core.hostfs import HostFS
 from psatoolkit.core.logging_setup import AuditLog
 from psatoolkit.core.models import (AssessmentResult, CheckResult, CheckStatus, Confidence, Evidence,
                                     Finding, FindingStatus, HostInfo, Limitation, Severity, utcnow)
@@ -98,6 +99,17 @@ class AssessmentContext:
     scope: TargetScope
     demo: bool
     temp_dir: Path | None = None
+    fs: HostFS = field(default_factory=HostFS)
+    notes: list[str] = field(default_factory=list)
+    partial: list[Limitation] = field(default_factory=list)
+
+    def note(self, text: str) -> None:
+        """Record what a check verified; shown as the check message (e.g. for passed checks)."""
+        self.notes.append(text)
+
+    def limitation(self, description: str, category: str = "dependency") -> None:
+        """Record reduced coverage without skipping the whole check."""
+        self.partial.append(Limitation(category, description))
 
     def evidence(self, description: str, source: str, data: Any = None) -> Evidence:
         return Evidence(description=description, source=source, data=redact(data))
@@ -201,7 +213,8 @@ class AssessmentEngine:
     def run(self, *, authorization: AuthorizationRecord | None, selected: list[str], host: HostInfo,
             os_info: OSInfo, runner: CommandRunner, audit: AuditLog, scope: TargetScope | None = None,
             stop: StopToken | None = None, demo: bool = False, temp_base: Path | None = None,
-            progress: ProgressCallback | None = None, assessment_id: str | None = None) -> AssessmentResult:
+            progress: ProgressCallback | None = None, assessment_id: str | None = None,
+            fs: HostFS | None = None) -> AssessmentResult:
         if authorization is None:
             raise AuthorizationError("An authorization record is required before any assessment.")
         if not selected:
@@ -210,6 +223,7 @@ class AssessmentEngine:
         if runner.stop_token is not stop:
             raise ValueError("runner and engine must share the same stop token")
         scope = scope or TargetScope()
+        fs = fs or HostFS()
         emit = progress or (lambda event: None)
 
         result = AssessmentResult(
@@ -238,7 +252,7 @@ class AssessmentEngine:
                     emit({"type": "check_start", "check_id": item.check.check_id,
                           "title": item.check.title, "index": index, "total": len(planned)})
                     ctx = AssessmentContext(host=host, os_info=os_info, config=self.config, runner=runner,
-                                            stop=stop, audit=audit, scope=scope, demo=demo, temp_dir=tmp)
+                                            stop=stop, audit=audit, scope=scope, demo=demo, temp_dir=tmp, fs=fs)
                     cr = self._execute(item, ctx, result)
                 result.checks.append(cr)
                 audit.write("check_end", check_id=cr.check_id, status=cr.status.value,
@@ -292,6 +306,8 @@ class AssessmentEngine:
                 result.limitations.append(Limitation("timeout", cr.message, check.check_id))
             return cr
 
+        for lim in ctx.partial:
+            result.limitations.append(Limitation(lim.category, lim.description, check.check_id))
         error = box.get("error")
         if isinstance(error, StopRequested):
             cr.status, cr.message = CheckStatus.CANCELLED, "Stopped by operator while running."
@@ -318,8 +334,9 @@ class AssessmentEngine:
                     ev.description = redact(ev.description)
             cr.findings = findings
             cr.status = CheckStatus.FINDINGS if findings else CheckStatus.PASSED
+            cr.message = redact("; ".join(ctx.notes))
             if ctx.stop.stopped:
-                cr.message = "Completed; assessment was stopped afterwards."
+                cr.message = (cr.message + "; " if cr.message else "") + "assessment was stopped afterwards."
         return cr
 
 

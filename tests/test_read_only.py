@@ -68,3 +68,12 @@ def test_every_registered_check_declares_metadata():
             assert check.check_id and check.title and check.supported_os
             if check.requires_admin:
                 assert check.admin_reason, f"{check.check_id} must explain why admin is needed"
+
+
+def test_check_catalogue_is_up_to_date():
+    import subprocess as sp
+    import sys
+
+    script = Path(__file__).resolve().parents[1] / "scripts" / "gen_checks_doc.py"
+    result = sp.run([sys.executable, "-B", str(script), "--check"], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr

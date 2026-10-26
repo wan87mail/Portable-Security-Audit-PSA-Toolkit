@@ -15,7 +15,18 @@ and servers you are **authorized** to assess.
 |---|---|
 | **Supported targets** | Windows 10 / 11, Windows Server 2019 / 2022 / 2025, Ubuntu 22.04 / 24.04, other Linux distributions (best-effort) |
 | **Requirements** | Python 3.10 or newer (standard library only, no `pip install` needed to run it). Tkinter is optional, for the GUI. |
-| **Current status** | Phases 1–2 of 10 complete. See [Project status](#project-status). |
+| **Current status** | Phases 1–3 of 10 complete: 37 read-only checks. See [Project status](#project-status). |
+
+## What it checks
+
+| Module | Checks |
+|---|---|
+| **A. System information** | Asset identity, OS support, interfaces and connections, listening ports, risky exposed services (Telnet, FTP, SNMP, Redis, Docker API...), installed software |
+| **B. Windows** | Firewall profiles, Defender/AV, SMBv1 and signing, RDP/NLA, UAC, password and lockout policy, Guest/local accounts, local admins, patch recency, BitLocker, risky services and unquoted paths, writable service binaries, WDigest/NTLM/LSA/LLMNR, legacy TLS, certificates, audit policy |
+| **C. Linux** | Pending security updates, SSH configuration, host firewall, UID-0 and privileged groups, sudo rules, empty/weak password hashes, PAM password and lockout policy, world-writable files, sensitive file permissions, SUID/SGID binaries, legacy services, disk encryption, AppArmor/SELinux, kernel sysctl hardening, service certificates |
+
+The full list, including which checks need Administrator/root and why, is in
+[docs/CHECKS.md](docs/CHECKS.md).
 
 ---
 
@@ -284,7 +295,7 @@ and a warning is logged.
 
 ```bash
 python -m pip install pytest
-python -m pytest                                        # 200+ tests, mocked; no system changes
+python -m pytest                                        # 300+ tests, mocked; no system changes
 xvfb-run -a python -m pytest tests/test_gui_smoke.py    # GUI test on Linux (needs python3-tk)
 ```
 
@@ -331,6 +342,7 @@ PortableSecurityAudit/
 
 More detail:
 [Architecture](docs/ARCHITECTURE.md) ·
+[Check catalogue](docs/CHECKS.md) ·
 [User guide](docs/USER_GUIDE.md) ·
 [Developer guide](docs/DEVELOPMENT.md) ·
 [Licences](LICENSES.md)
@@ -343,7 +355,7 @@ More detail:
 |---|---|---|
 | 1 | Architecture and project structure | ✅ Done |
 | 2 | Portable shell, authorization, engine, GUI and CLI, JSON report, integrity, demo mode | ✅ Done |
-| 3 | Windows and Linux read-only security checks | ⏳ Planned |
+| 3 | Windows and Linux read-only security checks | ✅ Done |
 | 4 | Controlled network assessment | ⏳ Planned |
 | 5 | Risk scoring and vulnerability data (CVE/CVSS) | ⏳ Planned |
 | 6 | HTML, PDF and CSV reports | ⏳ Planned |
@@ -351,5 +363,6 @@ More detail:
 | 8 | Standalone Windows `.exe` and Linux build | ⏳ Planned |
 | 9–10 | Security review, final documentation, release checklist | ⏳ Planned |
 
-At this stage the live checks identify the system and its OS support status.
-The Windows and Linux security audit checks are added in Phase 3. Details are in [docs/PHASES.md](docs/PHASES.md).
+The Windows checks have been tested against mocked PowerShell output, not yet
+on a real Windows host. Run [docs/TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md)
+before field use. Details are in [docs/PHASES.md](docs/PHASES.md).

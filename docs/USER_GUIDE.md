@@ -1,4 +1,4 @@
-# Operator guide (Phase 2 edition)
+# Operator guide (Phase 3 edition)
 
 This guide covers the features delivered so far. It is expanded into the full
 IT administrator manual in Phase 10.
@@ -71,6 +71,30 @@ If the drive is read-only, both reports and logs go to the folder you choose.
 Checks that need Administrator/root are listed by `info` and in the report's
 limitations, together with the reason. Run elevated only when the
 authorization covers it. The tool never elevates itself.
+
+| Without elevation you lose | |
+|---|---|
+| Windows | BitLocker status, audit policy, and `Get-SmbServerConfiguration` (SMBv1 may become *inconclusive*) |
+| Linux | sudoers review, `/etc/shadow` flags, `sshd -T`, firewall rule sets, process names of other users' sockets, root-only directories in file sweeps |
+
+See [CHECKS.md](CHECKS.md) for every check.
+
+## How long it takes
+
+A local audit usually takes 10–60 seconds. On Linux, the world-writable and
+SUID sweeps read every file under `/usr`, `/etc`, `/opt` and similar
+directories, which can take several minutes on large servers the first time
+(cold disk cache). Each check has its own time budget; a check that runs out
+of time is reported as a limitation and the assessment continues.
+
+## Reading the results
+
+- **confirmed:** the setting was observed directly.
+- **potential:** indirect evidence (e.g. a service that *may* be unneeded,
+  an install date suggesting missed patches); *manual validation required*.
+- **inconclusive:** the tool could not decide; follow the verification step.
+- A **passed** check shows what was verified in its message, e.g. "All 3
+  firewall profiles are enabled with default-deny inbound".
 
 ## Troubleshooting
 

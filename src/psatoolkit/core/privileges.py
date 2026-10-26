@@ -9,7 +9,7 @@ ELEVATION_HELP = {
     "windows": ("Right-click PortableSecurityAudit.exe and choose 'Run as administrator'. "
                 "Elevation is needed to read security policy, BitLocker, Defender "
                 "preferences and some service configuration."),
-    "linux": ("Run with 'sudo ./PortableSecurityAudit.sh'. Root is needed to read "
+    "linux": ("Run with 'sudo bash PortableSecurityAudit.sh'. Root is needed to read "
               "sshd effective configuration, /etc/shadow metadata, sudoers.d and full "
               "file-permission sweeps."),
 }

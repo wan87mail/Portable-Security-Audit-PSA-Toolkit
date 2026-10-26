@@ -3,5 +3,5 @@
 A defensive, read-only security assessment toolkit for authorized IT audits.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 TOOL_NAME = "Portable Security Audit"
