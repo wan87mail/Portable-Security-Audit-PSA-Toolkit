@@ -5,8 +5,8 @@
 | 1 | Architecture, limitations, project structure | **Done** |
 | 2 | Portable shell, authorization workflow, engine, GUI/CLI, JSON report, integrity, demo mode | **Done** |
 | 3 | Windows (Module B) and Linux (Module C) read-only checks; Module A inventory | **Done** |
-| 4 | Module D controlled network assessment (rate-limited TCP connect, TLS checks, optional Nmap) | Planned |
-| 5 | Finding normalisation, risk scoring, Module E vulnerability data (offline CVE/CVSS snapshots, optional Greenbone) | Planned |
+| 4 | Module D controlled network assessment | Not included in this build |
+| 5 | Finding normalisation, risk scoring, Module E vulnerability data (offline CVE/CVSS snapshots) | **Done** |
 | 6 | HTML, PDF, CSV reports; executive summary; remediation roadmap | Planned |
 | 7 | Module F baselines and custom baseline import; expanded demo and test checklists | Planned |
 | 8 | PyInstaller Windows `.exe`, Linux frozen build, USB preparation scripts | Planned |
@@ -58,6 +58,42 @@ Engine additions: `ctx.note()` explains passed checks in the report, and
 `ctx.limitation()` records reduced coverage (e.g. "run as root for sshd -T")
 without skipping the check.
 
+## Phase 5 deliverables
+
+| File | Purpose |
+|---|---|
+| `src/psatoolkit/core/normalize.py` | Consistency rules (status/severity/validation), reference validation, redaction, de-duplication, stable fingerprints |
+| `src/psatoolkit/core/scoring.py` | Risk score (severity x status x confidence), remediation priority buckets, overall posture rating with coverage caveat |
+| `src/psatoolkit/core/cvss.py` | CVSS v3.x base-score calculator and qualitative bands (verified against published scores) |
+| `src/psatoolkit/core/versions.py` | dpkg, rpm and generic version ordering (dpkg differential-tested against the real `dpkg`) |
+| `src/psatoolkit/core/vulndb.py` | Offline snapshot format, SHA-256 verification, range evaluation and package matching |
+| `src/psatoolkit/modules/vuln_assessment.py` | Module E: VULN-PKG-001 known vulnerabilities in installed software |
+| `scripts/vulndata_from_osv.py` | Builds a snapshot from OSV exports on an admin workstation (zip read in memory, never extracted) |
+| `docs/VULNDATA.md` | How matching works, confidence levels, and how to update data safely |
+
+Every finding now has `fingerprint`, `risk_score` and `priority`; every
+result has `posture` and `data_sources`. These are shown in the CLI and GUI
+and written to the JSON report.
+
+Validation on real data: the converter processed the full OSV Debian export
+(191,611 records in 12 s). The host's real `openssl` package was correctly
+reported as not affected by two real Ubuntu advisories, and a simulated older
+Debian 12 openssl matched 55 advisories, recommending the highest fixed version.
+
+## Known limitations after Phase 5
+
+- Matching is version-based. Results are *potential*: reachability of the
+  vulnerable code is not tested, and nothing is exploited.
+- No snapshot ships with the toolkit; build one before each engagement
+  ([VULNDATA.md](VULNDATA.md)). Without it, VULN-PKG-001 is skipped with
+  instructions.
+- Windows has no distribution advisory feed in OSV; only organisation-supplied
+  records are matched, with low confidence.
+- Debian OSV records usually carry no CVSS score; those advisories default to
+  Medium, as the rationale states.
+- CVSS v4.0 vectors are recorded but not scored locally.
+- Integration with external scanners (Nmap, Greenbone/OpenVAS) is not included.
+
 ## Known limitations after Phase 3
 
 - **Windows checks have not yet run on a real Windows host.** They are tested
@@ -79,8 +115,8 @@ without skipping the check.
 
 ## Known limitations after Phase 2 (still applicable)
 
-- The network scanner arrives in Phase 4. "Run Network Assessment" says so
-  when it is pressed; target configuration already works.
+- No network assessment module is included in this build. "Run Network
+  Assessment" says so when pressed; target configuration still works.
 - Reports are JSON only; HTML/PDF/CSV arrive in Phase 6.
 - The GUI was tested on Linux under Xvfb (Tk 9.0). It has not yet been tested
   on a physical Windows desktop; that is part of Phase 8/9 testing.

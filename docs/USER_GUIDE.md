@@ -87,6 +87,30 @@ directories, which can take several minutes on large servers the first time
 (cold disk cache). Each check has its own time budget; a check that runs out
 of time is reported as a limitation and the assessment continues.
 
+## Vulnerability data
+
+Module E needs an offline snapshot in `vulndata/` on the drive. Build it on an
+admin workstation before each engagement, as described in [VULNDATA.md](VULNDATA.md).
+Without a snapshot, the check is skipped and the report says why.
+
+## Security posture and priorities
+
+| Rating | Meaning |
+|---|---|
+| Critical risk | At least one confirmed Critical finding |
+| High risk | A potential Critical, or three or more confirmed High findings |
+| Elevated risk | At least one High finding |
+| Moderate risk | Medium findings only |
+| Low risk | No Critical, High or Medium findings |
+
+If fewer than 75% of applicable checks completed (e.g. without
+administrator rights), the rating carries a warning that the real posture may
+be worse.
+
+Each finding's **priority** places it on the remediation roadmap: *immediate*
+(Critical, or confirmed High with high confidence), *short-term* (other High),
+*planned* (Medium/Low), *monitoring* (Informational).
+
 ## Reading the results
 
 - **confirmed:** the setting was observed directly.

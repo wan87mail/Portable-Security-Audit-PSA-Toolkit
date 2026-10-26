@@ -315,27 +315,73 @@ class ExposedRiskyServicesCheck(Check):
         return findings
 
 
+WINDOWS_SOFTWARE_PS = ("$k='HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',"
+                       "'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'; "
+                       "Get-ItemProperty -Path $k -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName } | "
+                       "Select-Object DisplayName,DisplayVersion,Publisher")
+DPKG_FORMAT = "${binary:Package}\t${Version}\t${db:Status-Abbrev}\t${source:Package}\t${source:Version}\n"
+RPM_FORMAT = "%{NAME}\t%{EPOCH}:%{VERSION}-%{RELEASE}\t%{SOURCERPM}\n"
+
+
+def parse_dpkg_inventory(text: str) -> list[dict[str, str]]:
+    pkgs = []
+    for line in text.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 3 or not parts[2].startswith("ii"):
+            continue
+        pkg = {"name": parts[0], "version": parts[1]}
+        source = parts[3].strip() if len(parts) > 3 else ""
+        if source and source != parts[0].split(":")[0]:
+            pkg["source"] = source
+            pkg["source_version"] = (parts[4].strip() if len(parts) > 4 else "") or parts[1]
+        pkgs.append(pkg)
+    return pkgs
+
+
+def parse_rpm_inventory(text: str) -> list[dict[str, str]]:
+    pkgs = []
+    for line in text.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 2:
+            continue
+        version = parts[1].replace("(none):", "")
+        pkg = {"name": parts[0], "version": version}
+        if len(parts) > 2 and parts[2].endswith(".src.rpm"):
+            source = parts[2][: -len(".src.rpm")].rsplit("-", 2)[0]
+            if source and source != parts[0]:
+                pkg["source"] = source
+                pkg["source_version"] = version
+        pkgs.append(pkg)
+    return pkgs
+
+
+def collect_software(ctx: AssessmentContext) -> tuple[list[dict[str, str]], str, str]:
+    """Return (packages, description of source, version scheme 'dpkg'|'rpm'|'generic')."""
+    if ctx.os_info.family == "windows":
+        rows = run_ps(ctx, WINDOWS_SOFTWARE_PS, "installed programs")
+        items = sorted({(str(r.get("DisplayName")), str(r.get("DisplayVersion") or ""),
+                         str(r.get("Publisher") or "")) for r in rows if isinstance(r, dict)})
+        return ([{"name": n, "version": v, "publisher": p} for n, v, p in items],
+                "Uninstall registry keys (machine-wide; per-user installs not included)", "generic")
+    res = ctx.runner.run(["dpkg-query", "-W", "-f", DPKG_FORMAT])
+    if res.ok:
+        return parse_dpkg_inventory(res.stdout), "dpkg-query", "dpkg"
+    res = ctx.runner.run(["rpm", "-qa", "--qf", RPM_FORMAT])
+    if res.ok:
+        return parse_rpm_inventory(res.stdout), "rpm", "rpm"
+    raise SkipCheck("No supported package manager (dpkg or rpm) was found.", "dependency")
+
+
 class SoftwareInventoryCheck(Check):
     check_id = "SYS-SW-001"
     title = "Installed software inventory"
     description = "Lists installed packages/programs (name and version) for patch and licence review."
     supported_os = frozenset({"windows", "linux"})
     MAX_ITEMS = 5000
-
-    WINDOWS_PS = ("$k='HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',"
-                  "'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'; "
-                  "Get-ItemProperty -Path $k -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName } | "
-                  "Select-Object DisplayName,DisplayVersion,Publisher")
+    WINDOWS_PS = WINDOWS_SOFTWARE_PS
 
     def run(self, ctx: AssessmentContext) -> list[Finding]:
-        if ctx.os_info.family == "windows":
-            rows = run_ps(ctx, self.WINDOWS_PS, "installed programs")
-            items = sorted({(str(r.get("DisplayName")), str(r.get("DisplayVersion") or ""),
-                             str(r.get("Publisher") or "")) for r in rows if isinstance(r, dict)})
-            packages = [{"name": n, "version": v, "publisher": p} for n, v, p in items]
-            source = "Uninstall registry keys (machine-wide; per-user installs not included)"
-        else:
-            packages, source = self._linux_packages(ctx)
+        packages, source, _scheme = collect_software(ctx)
         total = len(packages)
         ctx.note(f"{total} installed package(s)")
         return [ctx.finding(
@@ -349,22 +395,6 @@ class SoftwareInventoryCheck(Check):
             verification="Compare against the approved software list for this system role.",
             severity_rationale="Informational inventory; vulnerability matching is performed in Module E.",
             evidence=[ctx.evidence("Installed software", source, packages[: self.MAX_ITEMS])])]
-
-    @staticmethod
-    def _linux_packages(ctx: AssessmentContext) -> tuple[list[dict], str]:
-        res = ctx.runner.run(["dpkg-query", "-W", "-f", "${binary:Package}\t${Version}\t${db:Status-Abbrev}\n"])
-        if res.ok:
-            pkgs = []
-            for line in res.stdout.splitlines():
-                parts = line.split("\t")
-                if len(parts) >= 3 and parts[2].startswith("ii"):
-                    pkgs.append({"name": parts[0], "version": parts[1]})
-            return pkgs, "dpkg-query"
-        res = ctx.runner.run(["rpm", "-qa", "--qf", "%{NAME}\t%{VERSION}-%{RELEASE}\n"])
-        if res.ok:
-            return [{"name": p[0], "version": p[1]} for p in
-                    (line.split("\t") for line in res.stdout.splitlines()) if len(p) == 2], "rpm"
-        raise SkipCheck("No supported package manager (dpkg or rpm) was found.", "dependency")
 
 
 def build_module() -> Module:

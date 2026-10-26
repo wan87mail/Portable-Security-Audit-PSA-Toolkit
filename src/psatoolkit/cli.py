@@ -149,8 +149,15 @@ def _summarise(outcome: SessionOutcome) -> None:
     _print(f"Host          : {r.host.hostname} - {r.host.os_name}")
     _print(f"Status        : {r.status}")
     _print("Findings      : " + ", ".join(f"{k}={v}" for k, v in r.severity_counts().items()))
+    if r.posture:
+        p = r.posture
+        _print(f"Posture       : {p['rating']} - {p['reason']} (coverage {p['coverage_percent']}% of "
+               f"{p['checks_applicable']} applicable checks)")
+        if p.get("caveat"):
+            _print(f"                {p['caveat']}")
     for f in r.findings:
-        _print(f"  {f.severity.value.upper():<13} {f.finding_id:<22} {f.title} [{f.status.value}]")
+        _print(f"  {f.severity.value.upper():<13} {f.risk_score or 0:>4.1f}  {f.priority:<10} "
+               f"{f.finding_id:<24} {f.title} [{f.status.value}]")
     if r.limitations:
         _print("Limitations:")
         for lim in r.limitations:

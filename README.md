@@ -15,7 +15,7 @@ and servers you are **authorized** to assess.
 |---|---|
 | **Supported targets** | Windows 10 / 11, Windows Server 2019 / 2022 / 2025, Ubuntu 22.04 / 24.04, other Linux distributions (best-effort) |
 | **Requirements** | Python 3.10 or newer (standard library only, no `pip install` needed to run it). Tkinter is optional, for the GUI. |
-| **Current status** | Phases 1–3 of 10 complete: 37 read-only checks. See [Project status](#project-status). |
+| **Current status** | Phases 1–3 and 5 of 10 complete: 38 read-only checks, risk scoring, offline vulnerability matching. See [Project status](#project-status). |
 
 ## What it checks
 
@@ -23,6 +23,7 @@ and servers you are **authorized** to assess.
 |---|---|
 | **A. System information** | Asset identity, OS support, interfaces and connections, listening ports, risky exposed services (Telnet, FTP, SNMP, Redis, Docker API...), installed software |
 | **B. Windows** | Firewall profiles, Defender/AV, SMBv1 and signing, RDP/NLA, UAC, password and lockout policy, Guest/local accounts, local admins, patch recency, BitLocker, risky services and unquoted paths, writable service binaries, WDigest/NTLM/LSA/LLMNR, legacy TLS, certificates, audit policy |
+| **E. Vulnerabilities** | Installed packages compared with an offline, integrity-checked advisory snapshot (CVE, CVSS, fixed versions); see [docs/VULNDATA.md](docs/VULNDATA.md) |
 | **C. Linux** | Pending security updates, SSH configuration, host firewall, UID-0 and privileged groups, sudo rules, empty/weak password hashes, PAM password and lockout policy, world-writable files, sensitive file permissions, SUID/SGID binaries, legacy services, disk encryption, AppArmor/SELinux, kernel sysctl hardening, service certificates |
 
 The full list, including which checks need Administrator/root and why, is in
@@ -153,6 +154,9 @@ Do this on a **trusted** admin machine.
    scripts\PortableSecurityAudit.bat build-manifest
    ```
 
+   If you use Module E, first copy a vulnerability snapshot to `vulndata/`
+   ([docs/VULNDATA.md](docs/VULNDATA.md)), because the manifest must cover it.
+
    It prints a line like `Manifest SHA-256: 3f9a…`. **Record this value** in
    your change ticket or release notes, kept somewhere other than the USB drive.
 4. **Before every engagement, verify** the drive:
@@ -258,6 +262,12 @@ Every finding contains:
 - **References:** CVE (with CVSS score, version and source), CWE, or baseline item
 - **Remediation**, verification steps, and whether manual validation is required
 
+Every finding also gets a **risk score** (0–10, used to rank work: severity ×
+certainty) and a **priority**: *immediate*, *short-term*, *planned* or
+*monitoring*. The report starts with an overall **security posture** rating
+(Critical / High / Elevated / Moderate / Low risk) that explains its reason
+and the check coverage it is based on.
+
 The **limitations** section lists every check that was skipped (missing
 privileges, missing tool, no authorized target), failed or timed out, so that
 gaps in coverage are visible.
@@ -295,7 +305,7 @@ and a warning is logged.
 
 ```bash
 python -m pip install pytest
-python -m pytest                                        # 300+ tests, mocked; no system changes
+python -m pytest                                        # 380+ tests, mocked; no system changes
 xvfb-run -a python -m pytest tests/test_gui_smoke.py    # GUI test on Linux (needs python3-tk)
 ```
 
@@ -335,7 +345,8 @@ PortableSecurityAudit/
 │   └── reporting/               report writers (JSON now; HTML/PDF/CSV in Phase 6)
 ├── tests/                       automated tests
 ├── docs/                        architecture, user guide, developer guide, phases, examples
-├── baselines/  tools/  vulndata/   reserved for later phases
+├── vulndata/                    offline vulnerability snapshot for Module E (you build it; see docs/VULNDATA.md)
+├── baselines/  tools/           reserved for later phases
 ├── reports/  logs/              created at run time (not stored in Git)
 └── checksums/                   integrity manifest (created when preparing the drive)
 ```
@@ -356,8 +367,8 @@ More detail:
 | 1 | Architecture and project structure | ✅ Done |
 | 2 | Portable shell, authorization, engine, GUI and CLI, JSON report, integrity, demo mode | ✅ Done |
 | 3 | Windows and Linux read-only security checks | ✅ Done |
-| 4 | Controlled network assessment | ⏳ Planned |
-| 5 | Risk scoring and vulnerability data (CVE/CVSS) | ⏳ Planned |
+| 4 | Controlled network assessment | Not included in this build |
+| 5 | Risk scoring and vulnerability data (CVE/CVSS) | ✅ Done |
 | 6 | HTML, PDF and CSV reports | ⏳ Planned |
 | 7 | Security baselines and expanded demo | ⏳ Planned |
 | 8 | Standalone Windows `.exe` and Linux build | ⏳ Planned |

@@ -22,6 +22,7 @@ from psatoolkit.core.authorization import AuthorizationError, AuthorizationRecor
 from psatoolkit.core.config import AppConfig
 from psatoolkit.core.hostfs import HostFS
 from psatoolkit.core.logging_setup import AuditLog
+from psatoolkit.core.normalize import finalize
 from psatoolkit.core.models import (AssessmentResult, CheckResult, CheckStatus, Confidence, Evidence,
                                     Finding, FindingStatus, HostInfo, Limitation, Severity, utcnow)
 from psatoolkit.core.osdetect import OSInfo
@@ -102,6 +103,7 @@ class AssessmentContext:
     fs: HostFS = field(default_factory=HostFS)
     notes: list[str] = field(default_factory=list)
     partial: list[Limitation] = field(default_factory=list)
+    data_sources: list[dict[str, Any]] = field(default_factory=list)
 
     def note(self, text: str) -> None:
         """Record what a check verified; shown as the check message (e.g. for passed checks)."""
@@ -265,7 +267,9 @@ class AssessmentEngine:
         result.status = "stopped" if stop.stopped else "completed"
         if stop.stopped:
             result.limitations.append(Limitation("scope", f"Assessment stopped early: {stop.reason}"))
-        audit.write("assessment_end", status=result.status, severity_counts=result.severity_counts())
+        finalize(result)
+        audit.write("assessment_end", status=result.status, severity_counts=result.severity_counts(),
+                    posture=result.posture.get("rating"))
         emit({"type": "end", "status": result.status, "severity_counts": result.severity_counts()})
         return result
 
@@ -308,6 +312,9 @@ class AssessmentEngine:
 
         for lim in ctx.partial:
             result.limitations.append(Limitation(lim.category, lim.description, check.check_id))
+        for source in ctx.data_sources:
+            if source not in result.data_sources:
+                result.data_sources.append(source)
         error = box.get("error")
         if isinstance(error, StopRequested):
             cr.status, cr.message = CheckStatus.CANCELLED, "Stopped by operator while running."

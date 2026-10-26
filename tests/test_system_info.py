@@ -113,14 +113,19 @@ def test_network_interfaces_windows():
 
 
 def test_software_inventory():
-    dpkg = "openssl\t3.0.13-0ubuntu3.4\tii \nold-pkg\t1.0\trc \nbash\t5.2.21-2ubuntu4\tii \n"
+    dpkg = ("openssl\t3.0.13-0ubuntu3.4\tii \topenssl\t3.0.13-0ubuntu3.4\nold-pkg\t1.0\trc \t\t\n"
+            "libssl3t64:amd64\t3.0.13-0ubuntu3.4\tii \topenssl\t3.0.13-0ubuntu3.4\n")
     f = s.SoftwareInventoryCheck().run(make_ctx(LINUX_OS, FakeRunner().on("dpkg-query", stdout=dpkg)))
     assert f[0].evidence[0].data == [{"name": "openssl", "version": "3.0.13-0ubuntu3.4"},
-                                     {"name": "bash", "version": "5.2.21-2ubuntu4"}]
-    rpm = FakeRunner().on("dpkg-query", error="not_found").on("rpm", stdout="openssl\t3.0.7-25.el9\n")
+                                     {"name": "libssl3t64:amd64", "version": "3.0.13-0ubuntu3.4",
+                                      "source": "openssl", "source_version": "3.0.13-0ubuntu3.4"}]
+    rpm = FakeRunner().on("dpkg-query", error="not_found").on("rpm", stdout="openssl\t(none):3.0.7-25.el9\n")
     assert "1 installed" in s.SoftwareInventoryCheck().run(make_ctx(LINUX_OS, rpm))[0].title
     with pytest.raises(SkipCheck):
         s.SoftwareInventoryCheck().run(make_ctx(LINUX_OS, FakeRunner()))
+    libs = s.parse_rpm_inventory("openssl-libs\t1:3.0.7-25.el9\topenssl-3.0.7-25.el9.src.rpm\n")
+    assert libs == [{"name": "openssl-libs", "version": "1:3.0.7-25.el9", "source": "openssl",
+                     "source_version": "1:3.0.7-25.el9"}]
     win = FakeRunner().on("powershell", contains="Uninstall", json_=[
         {"DisplayName": "7-Zip", "DisplayVersion": "23.01", "Publisher": "Igor Pavlov"},
         {"DisplayName": "7-Zip", "DisplayVersion": "23.01", "Publisher": "Igor Pavlov"}])

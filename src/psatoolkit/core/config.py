@@ -57,6 +57,12 @@ class ReportingConfig:
 
 
 @dataclass
+class VulnDataConfig:
+    directory: str = ""            # empty = <USB root>/vulndata
+    max_age_days: int = 30
+
+
+@dataclass
 class AppConfig:
     offline_mode: bool = True
     output_dir: str = ""
@@ -64,6 +70,7 @@ class AppConfig:
     execution: ExecutionConfig = field(default_factory=ExecutionConfig)
     network: NetworkConfig = field(default_factory=NetworkConfig)
     reporting: ReportingConfig = field(default_factory=ReportingConfig)
+    vulndata: VulnDataConfig = field(default_factory=VulnDataConfig)
     warnings: list[str] = field(default_factory=list)
     sources: list[str] = field(default_factory=list)
 
@@ -220,6 +227,10 @@ def build_config(data: dict[str, Any]) -> AppConfig:
         b.warnings.append(f"[reporting].formats: unsupported entries ignored (supported: {SUPPORTED_REPORT_FORMATS})")
     cfg.reporting.formats = valid or ["json"]
     cfg.reporting.include_raw_evidence = b.get("reporting", "include_raw_evidence", True, bool)
+
+    cfg.vulndata.directory = b.get("vulnerability_data", "directory", "", str)
+    cfg.vulndata.max_age_days = b.clamp("vulnerability_data", "max_age_days",
+                                        b.get("vulnerability_data", "max_age_days", 30, int), 1, 3650)
 
     cfg.warnings = b.warnings
     return cfg

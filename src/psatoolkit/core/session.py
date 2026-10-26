@@ -62,6 +62,8 @@ class Toolkit:
         self.paths: AppPaths = get_paths(root)
         self.config: AppConfig = load_config(self.paths.config_dir, config_file)
         self.modules: list[Module] = load_modules()
+        vd = Path(self.config.vulndata.directory) if self.config.vulndata.directory else self.paths.vulndata_dir
+        self.config.vulndata.directory = str(vd if vd.is_absolute() else self.paths.root / vd)
         self.engine = AssessmentEngine(self.modules, self.config)
         self.os_info = os_info or detect_os()
         self.hostname = hostname or get_hostname()

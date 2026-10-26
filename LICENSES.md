@@ -28,7 +28,14 @@ The Phase 1–2 runtime uses **only the Python standard library**.
 |---|---|---|
 | Nmap | Nmap Public Source License (NPSL) | Free for internal use; read the NPSL before redistributing it on drives given to third parties. Place it in `tools/<os>/` only after reviewing the licence. |
 | OpenSSL | Apache-2.0 (3.x) | Usually present on Linux targets already. |
-| Greenbone/OpenVAS | AGPL-3.0 / GPL | Integrated as an external, separately-run server; never shipped on the USB drive. |
+| Greenbone/OpenVAS | AGPL-3.0 / GPL | Not integrated in this build; never shipped on the USB drive. |
+
+## Vulnerability data
+
+Snapshots built with `scripts/vulndata_from_osv.py` contain data aggregated by
+OSV (https://osv.dev) from many source databases, each with its own licence.
+Review https://google.github.io/osv.dev/data/ before redistributing a snapshot
+outside your organisation. No vulnerability data ships with the toolkit.
 
 ## Content
 

@@ -325,7 +325,7 @@ class Dashboard:
                 ("Support level", host.support_level),
                 ("Privileges", "Administrator/root" if host.elevated else "Standard user (limited checks)"),
                 ("Selected modules", ""), ("Assessment ID", "-"), ("Started", "-"), ("Completed", "-"),
-                ("Status", "Idle"))
+                ("Status", "Idle"), ("Security posture", "-"))
         for r, (label, value) in enumerate(rows):
             ttk.Label(info, text=label + ":").grid(row=r // 2, column=(r % 2) * 2, sticky="w", **PAD)
             var = tk.StringVar(value=value)
@@ -442,6 +442,7 @@ class Dashboard:
         self.progress.configure(value=0, maximum=1)
         self.info_vars["Started"].set(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         self.info_vars["Completed"].set("-")
+        self.info_vars["Security posture"].set("-")
         self.info_vars["Status"].set("Running" + (" (demo)" if demo else ""))
         self.open_btn.configure(state="disabled")
         self.stop_token = StopToken()
@@ -536,6 +537,12 @@ class Dashboard:
             self.last_outcome = outcome
             self.info_vars["Completed"].set(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             self.info_vars["Status"].set(outcome.result.status.capitalize())
+            posture = outcome.result.posture
+            if posture:
+                self.info_vars["Security posture"].set(
+                    f"{posture['rating']} ({posture['reason']}; coverage {posture['coverage_percent']}%)")
+                if posture.get("caveat"):
+                    self._log(posture["caveat"])
             self.current.configure(text="")
             for lim in outcome.result.limitations:
                 self._log(f"Limitation ({lim.category}): {lim.description}")

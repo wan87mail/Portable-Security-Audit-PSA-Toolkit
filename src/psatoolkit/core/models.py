@@ -115,6 +115,10 @@ class Finding:
     manual_validation_required: bool = False
     check_id: str = ""
     finding_id: str = ""             # assigned by the engine: "<check_id>-<n>"
+    # Set by normalization/scoring (core/normalize.py, core/scoring.py):
+    fingerprint: str = ""            # stable across runs for the same issue on the same host
+    risk_score: float | None = None  # 0-10 ranking score; see scoring.risk_score()
+    priority: str = ""               # remediation roadmap bucket
 
 
 @dataclass
@@ -169,11 +173,13 @@ class AssessmentResult:
     status: str = "running"                # running, completed, stopped, failed
     checks: list[CheckResult] = field(default_factory=list)
     limitations: list[Limitation] = field(default_factory=list)
+    posture: dict[str, Any] = field(default_factory=dict)       # overall rating, set by scoring
+    data_sources: list[dict[str, Any]] = field(default_factory=list)  # e.g. vulnerability data snapshot
 
     @property
     def findings(self) -> list[Finding]:
         out = [f for c in self.checks for f in c.findings]
-        return sorted(out, key=lambda f: f.severity.rank, reverse=True)
+        return sorted(out, key=lambda f: (f.severity.rank, f.risk_score or 0.0), reverse=True)
 
     def severity_counts(self) -> dict[str, int]:
         counts = {s.value: 0 for s in Severity.ordered()}
