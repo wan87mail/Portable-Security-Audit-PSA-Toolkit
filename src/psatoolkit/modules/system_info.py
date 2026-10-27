@@ -110,7 +110,7 @@ class PlatformSupportCheck(Check):
                 verification="Re-run the assessment after the upgrade; this finding should disappear.",
                 severity_rationale="High: an unsupported OS accumulates unpatched vulnerabilities; "
                                    "rated below Critical because exposure depends on network reachability.",
-                evidence=[ctx.evidence("OS build reported by the platform API", "platform.win32_ver()",
+                evidence=[ctx.evidence("OS build reported by the platform API", "sys.getwindowsversion()",
                                        {"name": info.name, "build": info.build})],
                 references=[Reference(ReferenceKind.URL,
                                       "https://learn.microsoft.com/lifecycle/products/",
