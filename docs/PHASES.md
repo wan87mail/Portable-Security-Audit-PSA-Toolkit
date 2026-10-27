@@ -11,7 +11,60 @@
 | 7 | Module F baselines and custom baseline import; expanded demo and test checklists | **Done** |
 | 8 | PyInstaller Windows `.exe`, Linux frozen build, USB preparation scripts | **Done** |
 | 9 | Security, dependency and usability review | **Done** ([SECURITY_REVIEW.md](SECURITY_REVIEW.md)) |
-| 10 | Final documentation and release checklist | Planned |
+| 10 | Final documentation and release checklist | **Done**: version 1.0.0 |
+
+## Current known limitations (1.0.0)
+
+This list supersedes the per-phase lists further down, which are kept as history.
+Residual security risks are covered in [SECURITY_REVIEW.md](SECURITY_REVIEW.md#3-residual-risks-and-limitations).
+
+**Scope**
+- There is no network assessment module (Phase 4 is not included). Remote targets
+  are recorded in the report scope, but never contacted.
+- The toolkit is host-based. It trusts the OS it runs on, so a compromised host
+  can hide things from it.
+- Results are not a compliance certification. The example baselines are
+  illustrative, not official benchmarks.
+
+**Testing coverage**
+- Windows checks and the GUI run in CI on **Windows Server 2022/2025**
+  runners (live read-only audit and GUI smoke test). Windows 10/11 desktops and
+  Server 2019 are covered by the manual [TEST_CHECKLIST.md](TEST_CHECKLIST.md)
+  only, so complete it before first field use.
+- The HTML report was checked in Chromium only.
+
+**Checks**
+- `net accounts` (WIN-ACCT-001) is parsed in English only; other display
+  languages give *skipped*, with an explanation.
+- Patch checks are offline. Windows infers missing updates from install dates;
+  Linux uses the local package cache (it never runs `apt update`).
+- Vulnerability matching is version-based, so results are *potential*. Windows
+  has no OSV distribution feed (only organisation-supplied records, at low
+  confidence). Debian records without CVSS default to Medium. CVSS v4.0 vectors
+  are not scored.
+- Several Linux checks need root (see [CHECKS.md](CHECKS.md)). File-system sweeps
+  can take minutes on large servers. Inside containers, host-level checks are
+  skipped.
+- `file_kv` baselines read simple key/value files only (no YAML, INI sections or XML).
+
+**Reports and operations**
+- The PDF uses the standard PDF fonts: characters outside Windows-1252 appear
+  as "?". PDFs are not tagged for accessibility; use the HTML report with a
+  screen reader.
+- CI builds are unsigned; sign before production use (release checklist section 3).
+- The audit log is tamper-*evident*, not tamper-proof. Copy logs to protected storage.
+- On Windows, an emergency stop ends the running PowerShell, but not any process
+  it started. The shipped checks start none.
+
+## Phase 10 deliverables
+
+| File | Purpose |
+|---|---|
+| `docs/USER_GUIDE.md` | IT administrator manual: roles, engagement workflow, GUI/CLI reference, footprint on the target, results, hand-over and retention, drive maintenance, configuration reference, troubleshooting |
+| `docs/RELEASE_CHECKLIST.md` | Release preparation, verification, signing and publishing; per-engagement checklist; withdrawal procedure |
+| `CHANGELOG.md`, `SECURITY.md` | Version history (0.2.0 → 1.0.0) and vulnerability reporting policy |
+| `tests/test_docs.py` | Relative links and anchors resolve; version, changelog and checks catalogue agree; no stale "planned" promises in operator-facing docs |
+| README, GUI, configuration | Updated for 1.0: no references to future phases; the missing network module is stated plainly |
 
 ## Phase 1–2 deliverables
 
@@ -159,7 +212,9 @@ Verified here: full suite on Python 3.10, 3.12 and 3.13, a live read-only audit
 of an Ubuntu 24.04 host (all 23 checks ran with no policy denials, report
 folder `0700`), and a Linux build installed from the hash lock.
 
-## Known limitations after Phase 8
+## History: limitations recorded after each phase
+
+### After Phase 8
 
 - The Windows `.exe` can only be built on Windows. It is built and
   self-tested in CI; there is no local Windows build log in this repository.
@@ -168,7 +223,7 @@ folder `0700`), and a Linux build installed from the hash lock.
 - The Linux GUI bundle could not be verified in this development container
   (its Python embeds Tcl/Tk 9); CI verifies it with `selftest --require-gui`.
 
-## Known limitations after Phase 7
+### After Phase 7
 
 - The example baselines are illustrative, not an official benchmark.
 - `file_kv` parses simple key/value files; it does not understand nested
@@ -176,7 +231,7 @@ folder `0700`), and a Linux build installed from the hash lock.
 - Windows baseline collectors are tested against mocked PowerShell output only
   (as with Module B).
 
-## Known limitations after Phase 6
+### After Phase 6
 
 - The PDF uses the standard PDF fonts, so characters outside Windows-1252
   (e.g. CJK, emoji) appear as "?". The HTML and JSON keep full Unicode.
@@ -184,7 +239,7 @@ folder `0700`), and a Linux build installed from the hash lock.
 - The HTML was checked in Chromium (desktop, and phone-width dark mode); other
   browsers have not been tested.
 
-## Known limitations after Phase 5
+### After Phase 5
 
 - Matching is version-based. Results are *potential*: reachability of the
   vulnerable code is not tested, and nothing is exploited.
@@ -198,7 +253,7 @@ folder `0700`), and a Linux build installed from the hash lock.
 - CVSS v4.0 vectors are recorded but not scored locally.
 - Integration with external scanners (Nmap, Greenbone/OpenVAS) is not included.
 
-## Known limitations after Phase 3
+### After Phase 3
 
 - **Windows checks have not yet run on a real Windows host.** They are tested
   against mocked PowerShell output (55 tests, and every script is verified
@@ -217,7 +272,7 @@ folder `0700`), and a Linux build installed from the hash lock.
 - Inside containers, systemd service and disk encryption checks are skipped
   (they describe the host, not the container).
 
-## Known limitations after Phase 2 (still applicable)
+### After Phase 2
 
 - No network assessment module is included in this build. "Run Network
   Assessment" says so when pressed; target configuration still works.

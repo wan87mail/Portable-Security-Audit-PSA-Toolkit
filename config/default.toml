@@ -6,9 +6,9 @@
 # warning is logged.
 
 [general]
-# Never contact external services. Turning this off only permits
-# operator-initiated vulnerability-data updates (Phase 5); assessment data
-# is never uploaded anywhere.
+# Never contact external services. No shipped check needs the internet, so
+# leave this on. Assessment data is never uploaded anywhere; vulnerability
+# data is prepared offline (docs/VULNDATA.md).
 offline_mode = true
 # Empty = <USB root>/reports. Set this if the USB drive is read-only.
 output_dir = ""
@@ -19,7 +19,9 @@ check_timeout_seconds = 120        # per check (max 3600)
 max_output_bytes = 2000000         # captured stdout/stderr per command
 
 [network]
-# Applies to Module D (controlled network assessment, Phase 4).
+# Scope limits for authorized remote targets and the preview-scan dry run.
+# This build includes no network assessment module: targets are recorded in the
+# report scope but never contacted.
 max_hosts_per_target = 256         # a /24; hard ceiling 1024
 max_total_hosts = 256              # across the whole authorized scope; hard ceiling 1024
 max_ports = 1024                   # hard ceiling 4096

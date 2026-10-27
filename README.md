@@ -15,7 +15,7 @@ and servers you are **authorized** to assess.
 |---|---|
 | **Supported targets** | Windows 10 / 11, Windows Server 2019 / 2022 / 2025, Ubuntu 22.04 / 24.04, other Linux distributions (best-effort) |
 | **Requirements** | Python 3.10 or newer (standard library only, no `pip install` needed to run it). Tkinter is optional, for the GUI. |
-| **Current status** | Phases 1–3 and 5–8 of 10 complete: 39 read-only checks, risk scoring, offline vulnerability matching, organisational baselines, HTML/PDF/CSV reports, standalone builds. See [Project status](#project-status). |
+| **Current status** | **Version 1.0.0**: 39 read-only checks, risk scoring, offline vulnerability matching, organisational baselines, HTML/PDF/CSV reports, standalone Windows `.exe` and Linux builds, and a completed security review. There is no network scanning module (see [Project status](#project-status)). |
 
 ## What it checks
 
@@ -29,6 +29,14 @@ and servers you are **authorized** to assess.
 
 The full list, including which checks need Administrator/root and why, is in
 [docs/CHECKS.md](docs/CHECKS.md).
+
+**Documentation:**
+- [IT administrator manual](docs/USER_GUIDE.md): running assessments, results, hand-over and drive maintenance
+- [Build and deployment](docs/BUILD.md)
+- [Release checklist](docs/RELEASE_CHECKLIST.md), including the per-engagement checklist
+- [Security review](docs/SECURITY_REVIEW.md) and [security policy](SECURITY.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Changelog](CHANGELOG.md)
 
 ---
 
@@ -147,32 +155,38 @@ python -m pytest
 
 Do this on a **trusted** admin machine.
 
-1. **Format** the drive (exFAT works on both Windows and Linux) and name it, for example, `PSA`.
-2. **Assemble the drive** with `scripts/prepare_usb.py`. It copies the Windows `.exe`, the Linux build, the
-   source edition, docs, baselines and vulnerability data, and writes the integrity manifest
-   (see [docs/BUILD.md](docs/BUILD.md)):
+1. **Format** the drive and name it, for example, `PSA`. exFAT works on both
+   Windows and Linux. Because reports describe the hosts' weaknesses, an
+   **encrypted** drive (BitLocker To Go or LUKS) is recommended.
+2. **Assemble the drive.** Choose one option:
+
+   **Option A (recommended): standalone builds.** Use `scripts/prepare_usb.py`
+   with the builds from CI or [docs/BUILD.md](docs/BUILD.md). It copies the
+   Windows `.exe`, the Linux build, the source edition, docs, baselines and
+   (optionally) vulnerability data. It then writes the integrity manifest:
 
    ```bat
-   py scripts\prepare_usb.py E:\PortableSecurityAudit --windows-build dist\windows\PortableSecurityAudit
+   py scripts\prepare_usb.py E:\PortableSecurityAudit --windows-build dist\windows\PortableSecurityAudit ^
+      --linux-build dist\linux\PortableSecurityAudit --vulndata build\vulndata
    ```
 
-   Alternatively, copy the project folder to the drive (source edition only, which needs Python on targets).
-3. **Create the integrity manifest.** This must be the last step, after all files are copied:
+   **Option B: source edition only.** This needs Python on every target. Copy
+   the project folder to the drive, add any vulnerability snapshot to
+   `vulndata/` ([docs/VULNDATA.md](docs/VULNDATA.md)), then create the manifest
+   as the last step:
 
    ```bat
    cd /d E:\PortableSecurityAudit
    scripts\PortableSecurityAudit.bat build-manifest
    ```
 
-   If you use Module E, first copy a vulnerability snapshot to `vulndata/`
-   ([docs/VULNDATA.md](docs/VULNDATA.md)), because the manifest must cover it.
-
-   It prints a line like `Manifest SHA-256: 3f9a…`. **Record this value** in
-   your change ticket or release notes, kept somewhere other than the USB drive.
-4. **Before every engagement, verify** the drive:
+3. **Record the manifest SHA-256.** Both options print a line like
+   `Manifest SHA-256: 3f9a…`. Keep it in your change ticket or release notes,
+   somewhere other than the USB drive.
+4. **Before every engagement, verify** the drive on a trusted computer:
 
    ```bat
-   scripts\PortableSecurityAudit.bat verify
+   E:\PortableSecurityAudit\PortableSecurityAudit.exe verify
    ```
 
    Check that it says `PASSED` and that the manifest SHA-256 matches the value you recorded.
@@ -188,15 +202,15 @@ Do this on a **trusted** admin machine.
 ## 5. Use the tool: GUI
 
 Start it:
-- **Windows:** double-click `scripts\PortableSecurityAudit.bat`. For more complete results, right-click → **Run as administrator**.
-- **Linux:** run `bash scripts/PortableSecurityAudit.sh`, or `sudo bash …` for more complete results.
+- **Windows:** double-click `PortableSecurityAudit.exe` on a prepared drive, or `scripts\PortableSecurityAudit.bat` in the source folder. For more complete results, right-click → **Run as administrator**.
+- **Linux:** run `bash PortableSecurityAudit.sh` on the drive (or `bash scripts/PortableSecurityAudit.sh` in the source folder), or `sudo bash …` for more complete results.
 
 | Control | What it does |
 |---|---|
 | **1. Start Local Security Audit** | Shows the authorization notice. You must enter your **name** and an **authorization reference** (ticket or letter number) and tick the confirmation box before **Start** becomes clickable. |
-| **2. Configure Authorized Remote Target** | Adds remote IPs, CIDR ranges (at most 256 hosts by default) or hostnames, each with its own permission reference. **Preview** validates an entry without sending any traffic. |
+| **2. Configure Authorized Remote Target** | Records remote IPs, CIDR ranges (at most 256 hosts by default) or hostnames, each with its own permission reference, in the report scope. **Preview** validates an entry. Nothing is sent, because this build has no network module. |
 | **3. Select Assessment Modules** | Chooses which modules run. Modules that don't apply to this OS are shown greyed out with the reason. |
-| **4. Run Network Assessment** | Shows a dry-run preview (hosts, ports, connection count, minimum duration) before any traffic. *The network scanning module arrives in Phase 4.* |
+| **4. Run Network Assessment** | Explains that this build includes no network assessment module. Nothing is sent. |
 | **5. View Previous Reports** | Lists past reports; you can open, verify or export them. |
 | **6. Export Report** | Copies the latest report folder to a location you choose. Nothing is ever uploaded. |
 | **7. Verify Tool Integrity** | Checks every file on the drive against the manifest. |
@@ -241,11 +255,11 @@ PSA audit --operator "Jane Admin" --reference "CHG-1234" \
           --scope "Finance file server" --confirm "I AM AUTHORIZED"
 ```
 
-**Remote targets** need a matching permission reference for each target:
+**Remote targets** can be recorded in the report scope, each with its own permission
+reference. This build has no network module, so they are **not contacted**:
 
 ```bash
-PSA audit --target 10.0.5.20 --target-ref "CHG-1234" \
-          --target 10.0.6.0/28 --target-ref "CHG-1235"
+PSA audit --target 10.0.5.20 --target-ref "CHG-1234"
 ```
 
 Press **Ctrl+C** at any time for an emergency stop.
@@ -307,15 +321,15 @@ output_dir = "D:\\PSA-Reports"   # where reports go (if the USB is read-only)
 
 [execution]
 command_timeout_seconds = 60
+check_timeout_seconds = 300      # large Linux servers with slow disks
 
-[network]
-max_hosts_per_target = 64
-rate_limit_per_second = 20
+[vulnerability_data]
+max_age_days = 14                # flag older snapshots sooner
 ```
 
-Unsafe values are automatically limited to hard maximums (for example, at
-most 1024 hosts, 64 concurrent connections and 200 connections per second),
-and a warning is logged.
+Unsafe values are automatically limited to safe bounds (for example, at most
+600 seconds per command), and a warning is logged. Every key is described in
+the [manual, section 10](docs/USER_GUIDE.md#10-configuration-reference).
 
 ---
 
@@ -323,7 +337,7 @@ and a warning is logged.
 
 ```bash
 python -m pip install pytest
-python -m pytest                                        # 450+ tests, mocked; no system changes
+python -m pytest                                        # 500+ tests, mocked; no system changes
 xvfb-run -a python -m pytest tests/test_gui_smoke.py    # GUI test on Linux (needs python3-tk)
 ```
 
@@ -338,7 +352,7 @@ xvfb-run -a python -m pytest tests/test_gui_smoke.py    # GUI test on Linux (nee
 | `Authorization refused` (exit 3) | A name or reference is missing, or the phrase was not typed exactly as `I AM AUTHORIZED`. |
 | `Integrity check FAILED` (exit 4) | Files changed since the drive was prepared. Don't use the drive; rebuild it from a trusted copy. |
 | Many checks show `skipped: Requires administrator/root` | Run elevated (*Run as administrator* or `sudo`) if your authorization allows it. |
-| `Python 3.10+ was not found` (Linux) | Install Python 3.10+ on the host, or wait for the frozen Linux build (Phase 8). |
+| `Python 3.10+ was not found` (Linux) | Use the Linux build in `linux/` on a prepared drive (no Python needed), or a host with Python 3.10+. |
 | `Python launcher py.exe not found` (Windows) | Install Python with the **py launcher** option (see 2.1). The launcher is looked up only in `C:\Windows\py.exe` and `%LOCALAPPDATA%\Programs\Python\Launcher\py.exe`, never in the current folder. |
 | Blocked by antivirus or AppLocker | Ask your endpoint-security team to allow the tool. It does not attempt to bypass security controls. |
 
@@ -348,24 +362,28 @@ xvfb-run -a python -m pytest tests/test_gui_smoke.py    # GUI test on Linux (nee
 
 ```
 PortableSecurityAudit/
-├── README.md, LICENSES.md, pyproject.toml, requirements-dev.txt
+├── README.md, CHANGELOG.md, SECURITY.md, LICENSES.md, pyproject.toml
+├── requirements-dev.txt, requirements-build.txt, requirements-build.lock (hash-locked build tools)
 ├── config/default.toml          default safe settings (add config/local.toml for overrides)
 ├── scripts/
 │   ├── PortableSecurityAudit.bat    Windows launcher
 │   ├── PortableSecurityAudit.sh     Linux launcher
+│   ├── prepare_usb.py               assemble or update a drive
+│   ├── vulndata_from_osv.py         build an offline vulnerability snapshot
 │   └── build_manifest.py            create the integrity manifest
+├── packaging/                   PyInstaller spec and Windows/Linux build scripts
 ├── src/psatoolkit/
 │   ├── cli.py                   command-line interface
 │   ├── gui/app.py               Tkinter dashboard
 │   ├── core/                    engine, authorization, safe command runner, validation,
 │   │                            OS detection, config, logging, integrity, redaction
-│   ├── modules/                 assessment modules (system_info, demo; more in later phases)
+│   ├── modules/                 assessment modules A, B, C, E, F and demo
 │   └── reporting/               report writers (JSON, HTML, PDF, CSV) and report integrity
 ├── tests/                       automated tests
-├── docs/                        architecture, user guide, developer guide, phases, examples
+├── docs/                        manual, build, release checklist, security review, checks, architecture, examples
 ├── vulndata/                    offline vulnerability snapshot for Module E (you build it; see docs/VULNDATA.md)
 ├── baselines/                   imported organisational baselines (+ examples/); see docs/BASELINES.md
-├── tools/                       reserved for optional tools
+├── tools/                       optional openssl copy for targets without one (covered by the manifest)
 ├── reports/  logs/              created at run time (not stored in Git)
 └── checksums/                   integrity manifest (created when preparing the drive)
 ```
@@ -394,9 +412,10 @@ More detail:
 | 7 | Security baselines and expanded demo | ✅ Done |
 | 8 | Standalone Windows `.exe` and Linux build | ✅ Done |
 | 9 | Security, dependency and usability review ([findings](docs/SECURITY_REVIEW.md)) | ✅ Done |
-| 10 | Final documentation and release checklist | ⏳ Planned |
+| 10 | Final documentation and release checklist ([manual](docs/USER_GUIDE.md), [checklist](docs/RELEASE_CHECKLIST.md)) | ✅ Done (version 1.0.0) |
 
 The Windows checks run in CI as a live read-only audit of Windows Server
 2022 and 2025 runners. They have not been run on Windows 10/11 desktops
-here, so run [docs/TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md) before field use.
-Details are in [docs/PHASES.md](docs/PHASES.md).
+here, so complete [docs/TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md) on one before
+the first field use; it is part of the [release checklist](docs/RELEASE_CHECKLIST.md).
+Details are in [docs/PHASES.md](docs/PHASES.md) and [CHANGELOG.md](CHANGELOG.md).

@@ -1,7 +1,10 @@
 # Manual test checklist (real hosts)
 
-Automated tests use mocked system data. Before field use, run this checklist
-on a **lab** machine of each target type that you own. Record the result,
+Automated tests use mocked system data, plus a live read-only audit of the CI
+runners (Windows Server 2022/2025, Ubuntu 22.04/24.04). Before field use, run
+this checklist on a **lab** machine of each target type that you own,
+especially Windows 10/11 desktops, which CI does not cover. It is part of the
+[release checklist](RELEASE_CHECKLIST.md). Record the result,
 the tool version and the OS build in your change ticket.
 
 Use a throw-away VM snapshot so you can confirm the "no changes" items by

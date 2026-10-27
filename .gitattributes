@@ -1,0 +1,5 @@
+# Example reports are integrity-protected (SHA256SUMS, canonical hash): keep their bytes
+# exactly as generated on every platform, never convert line endings.
+docs/examples/** -text
+# Shell scripts must keep LF endings to run on Linux targets.
+*.sh text eol=lf

@@ -71,7 +71,14 @@ Rules for checks:
 6. Write a `severity_rationale` that a junior administrator can follow.
 7. Register the module in `modules/__init__.py`.
 
-## Release integrity
+A check that needs a program not yet on the read-only allow-list also needs a
+policy rule in `core/safe_exec.py`, allowed and denied test cases, and an entry
+in `test_policy_only_lists_programs_the_checks_use`. See the checklist in
+[SECURITY_REVIEW.md](SECURITY_REVIEW.md#6-checklist-for-future-changes).
 
-Run `python scripts/build_manifest.py <drive-root>` as the last step, and
-publish the printed manifest SHA-256 through a separate channel.
+## Releases
+
+Follow [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md): changelog, the docs and
+security checks, a green CI run, signed builds, and `prepare_usb.py`, which
+writes the drive manifest. Publish the manifest SHA-256 through a separate
+channel from the drive itself.

@@ -1,7 +1,7 @@
 @echo off
 rem Portable Security Audit - Windows launcher for the SOURCE edition (development
 rem and testing). Field use on targets should use the standalone
-rem PortableSecurityAudit.exe built in Phase 8, which needs no Python.
+rem PortableSecurityAudit.exe (docs/BUILD.md), which needs no Python.
 rem
 rem Launch MANUALLY. Right-click > "Run as administrator" for privileged checks.
 setlocal
