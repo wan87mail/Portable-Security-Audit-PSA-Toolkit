@@ -96,6 +96,15 @@ directories, which can take several minutes on large servers the first time
 (cold disk cache). Each check has its own time budget; a check that runs out
 of time is reported as a limitation and the assessment continues.
 
+## Security baselines
+
+To compare systems with your organisation's required settings, import a
+baseline file once per drive: `import-baseline <file>`, or in the GUI use
+**Select Assessment Modules → Import baseline…**. Then rebuild the integrity
+manifest. Each rule that is not met is reported with the severity your
+baseline assigns; rules that could not be checked are listed under
+Limitations. See [BASELINES.md](BASELINES.md) to write your own.
+
 ## Vulnerability data
 
 Module E needs an offline snapshot in `vulndata/` on the drive. Build it on an

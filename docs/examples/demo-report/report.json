@@ -2,12 +2,12 @@
   "report_format_version": "1.0",
   "tool": {
     "name": "Portable Security Audit",
-    "version": "0.6.0"
+    "version": "0.7.0"
   },
-  "generated_at": "2026-10-26T23:54:01+00:00",
+  "generated_at": "2026-10-27T04:05:35+00:00",
   "assessment": {
-    "assessment_id": "PSA-20261026-235401-AC5CA3",
-    "tool_version": "0.6.0",
+    "assessment_id": "PSA-20261027-040535-914923",
+    "tool_version": "0.7.0",
     "mode": "demo",
     "host": {
       "hostname": "demo-host.example.internal",
@@ -27,15 +27,15 @@
       "scope_statement": "Demo only",
       "host": "demo-host.example.internal",
       "method": "demo",
-      "confirmed_at": "2026-10-26T23:54:01+00:00",
+      "confirmed_at": "2026-10-27T04:05:35+00:00",
       "notice_sha256": "bb38a6a22240b1e128c5e571accfca4b1a7a2dc6d5765ee0126f7b95e606d887",
       "remote_scope": []
     },
     "selected_modules": [
       "demo"
     ],
-    "started_at": "2026-10-26T23:54:01+00:00",
-    "finished_at": "2026-10-26T23:54:01+00:00",
+    "started_at": "2026-10-27T04:05:35+00:00",
+    "finished_at": "2026-10-27T04:05:35+00:00",
     "status": "completed",
     "limitations": [
       {
@@ -50,14 +50,20 @@
       }
     ],
     "posture": {
-      "rating": "Elevated risk",
-      "level": 2,
-      "reason": "2 high-severity finding(s)",
-      "coverage_percent": 71,
-      "checks_completed": 5,
-      "checks_applicable": 7,
-      "caveat": "Only 71% of applicable checks completed (see Limitations); the real posture may be worse than shown.",
+      "rating": "Critical risk",
+      "level": 0,
+      "reason": "1 confirmed critical finding(s)",
+      "coverage_percent": 80,
+      "checks_completed": 8,
+      "checks_applicable": 10,
+      "caveat": "",
       "top_risks": [
+        {
+          "finding_id": "DEMO-LNX-ACCT-001-01",
+          "title": "Account 'backup' has an empty password and SSH permits empty passwords",
+          "severity": "critical",
+          "risk_score": 10.0
+        },
         {
           "finding_id": "DEMO-WIN-SMB-001-01",
           "title": "SMBv1 server protocol is enabled",
@@ -71,121 +77,213 @@
           "risk_score": 7.5
         },
         {
+          "finding_id": "DEMO-VULN-001-01",
+          "title": "examplelib: 3 known vulnerabilities affect the installed version",
+          "severity": "high",
+          "risk_score": 6.0
+        },
+        {
           "finding_id": "DEMO-WIN-RDP-001-01",
           "title": "Remote Desktop allows connections without Network Level Authentication",
           "severity": "medium",
           "risk_score": 5.0
-        },
-        {
-          "finding_id": "DEMO-LNX-PATCH-001-01",
-          "title": "Security updates are pending for 3 packages",
-          "severity": "medium",
-          "risk_score": 3.4
-        },
-        {
-          "finding_id": "DEMO-SYS-001-01",
-          "title": "System volume encryption status could not be determined",
-          "severity": "low",
-          "risk_score": 0.8
         }
       ],
       "remediation_counts": {
-        "immediate": 2,
-        "short-term": 0,
-        "planned": 3,
-        "monitoring": 0
+        "immediate": 3,
+        "short-term": 1,
+        "planned": 4,
+        "monitoring": 1
       },
       "method": "Rating is driven by the most severe confirmed findings; coverage below 75% is flagged."
     },
-    "data_sources": [],
+    "data_sources": [
+      {
+        "type": "vulnerability_data",
+        "snapshot_date": "2026-10-20",
+        "age_days": 6,
+        "record_count": 64210,
+        "ecosystem": "ubuntu:24.04",
+        "sources": [
+          {
+            "name": "Sample snapshot (demo)"
+          }
+        ]
+      },
+      {
+        "type": "baseline",
+        "name": "Example Ubuntu Server Baseline",
+        "version": "1.0",
+        "file": "example-ubuntu-server.json",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "rules": 21,
+        "passed": 17,
+        "failed": 2,
+        "inconclusive": 2
+      }
+    ],
     "severity_counts": {
-      "critical": 0,
-      "high": 2,
+      "critical": 1,
+      "high": 3,
       "medium": 2,
-      "low": 1,
-      "informational": 0
+      "low": 2,
+      "informational": 1
     }
   },
   "checks": [
+    {
+      "check_id": "DEMO-LNX-ACCT-001",
+      "module_id": "demo",
+      "title": "Empty password with SSH access (sample)",
+      "status": "findings",
+      "started_at": "2026-10-27T04:05:35+00:00",
+      "finished_at": "2026-10-27T04:05:35+00:00",
+      "message": "",
+      "requires_admin": false,
+      "duration_seconds": 0.000552
+    },
     {
       "check_id": "DEMO-WIN-SMB-001",
       "module_id": "demo",
       "title": "SMBv1 protocol (sample)",
       "status": "findings",
-      "started_at": "2026-10-26T23:54:01+00:00",
-      "finished_at": "2026-10-26T23:54:01+00:00",
+      "started_at": "2026-10-27T04:05:35+00:00",
+      "finished_at": "2026-10-27T04:05:35+00:00",
       "message": "",
       "requires_admin": false,
-      "duration_seconds": 0.000404
+      "duration_seconds": 0.000391
     },
     {
       "check_id": "DEMO-WIN-RDP-001",
       "module_id": "demo",
       "title": "Remote Desktop exposure (sample)",
       "status": "findings",
-      "started_at": "2026-10-26T23:54:01+00:00",
-      "finished_at": "2026-10-26T23:54:01+00:00",
+      "started_at": "2026-10-27T04:05:35+00:00",
+      "finished_at": "2026-10-27T04:05:35+00:00",
       "message": "",
       "requires_admin": false,
-      "duration_seconds": 0.00026
+      "duration_seconds": 0.000331
     },
     {
       "check_id": "DEMO-LNX-SSH-001",
       "module_id": "demo",
       "title": "SSH root login (sample)",
       "status": "findings",
-      "started_at": "2026-10-26T23:54:01+00:00",
-      "finished_at": "2026-10-26T23:54:01+00:00",
+      "started_at": "2026-10-27T04:05:35+00:00",
+      "finished_at": "2026-10-27T04:05:35+00:00",
       "message": "",
       "requires_admin": false,
-      "duration_seconds": 0.000209
+      "duration_seconds": 0.000258
     },
     {
       "check_id": "DEMO-LNX-PATCH-001",
       "module_id": "demo",
       "title": "Pending security updates (sample)",
       "status": "findings",
-      "started_at": "2026-10-26T23:54:01+00:00",
-      "finished_at": "2026-10-26T23:54:01+00:00",
+      "started_at": "2026-10-27T04:05:35+00:00",
+      "finished_at": "2026-10-27T04:05:35+00:00",
       "message": "",
       "requires_admin": false,
-      "duration_seconds": 0.000211
+      "duration_seconds": 0.000235
     },
     {
       "check_id": "DEMO-SYS-001",
       "module_id": "demo",
       "title": "Disk encryption (sample)",
       "status": "findings",
-      "started_at": "2026-10-26T23:54:01+00:00",
-      "finished_at": "2026-10-26T23:54:01+00:00",
+      "started_at": "2026-10-27T04:05:35+00:00",
+      "finished_at": "2026-10-27T04:05:35+00:00",
       "message": "",
       "requires_admin": false,
-      "duration_seconds": 0.000176
+      "duration_seconds": 0.00027
+    },
+    {
+      "check_id": "DEMO-VULN-001",
+      "module_id": "demo",
+      "title": "Known vulnerabilities in installed software (sample)",
+      "status": "findings",
+      "started_at": "2026-10-27T04:05:35+00:00",
+      "finished_at": "2026-10-27T04:05:35+00:00",
+      "message": "",
+      "requires_admin": false,
+      "duration_seconds": 0.000275
+    },
+    {
+      "check_id": "DEMO-BASE-001",
+      "module_id": "demo",
+      "title": "Organisational baseline comparison (sample)",
+      "status": "findings",
+      "started_at": "2026-10-27T04:05:35+00:00",
+      "finished_at": "2026-10-27T04:05:35+00:00",
+      "message": "",
+      "requires_admin": false,
+      "duration_seconds": 0.00039
     },
     {
       "check_id": "DEMO-ERR-001",
       "module_id": "demo",
       "title": "Simulated check failure (sample)",
       "status": "error",
-      "started_at": "2026-10-26T23:54:01+00:00",
-      "finished_at": "2026-10-26T23:54:01+00:00",
+      "started_at": "2026-10-27T04:05:35+00:00",
+      "finished_at": "2026-10-27T04:05:35+00:00",
       "message": "RuntimeError: simulated failure to demonstrate fail-soft behaviour",
       "requires_admin": false,
-      "duration_seconds": 0.000104
+      "duration_seconds": 0.000173
     },
     {
       "check_id": "DEMO-PRIV-001",
       "module_id": "demo",
       "title": "Local security policy export (sample, needs admin)",
       "status": "skipped",
-      "started_at": "2026-10-26T23:54:01+00:00",
-      "finished_at": "2026-10-26T23:54:01+00:00",
+      "started_at": "2026-10-27T04:05:35+00:00",
+      "finished_at": "2026-10-27T04:05:35+00:00",
       "message": "Requires administrator/root privileges: Exporting the local security policy requires an elevated session. Run the toolkit with administrative privileges.",
       "requires_admin": true,
       "duration_seconds": 0.0
     }
   ],
   "findings": [
+    {
+      "title": "Account 'backup' has an empty password and SSH permits empty passwords",
+      "severity": "critical",
+      "status": "confirmed",
+      "affected_host": "demo-host.example.internal",
+      "affected_component": "/etc/shadow and sshd (PermitEmptyPasswords yes)",
+      "description": "[DEMO DATA - not from a real system] The 'backup' account has no password, and the effective sshd configuration allows empty-password logins with password authentication enabled.",
+      "impact": "Anyone who can reach SSH can log in as 'backup' without credentials.",
+      "confidence": "high",
+      "remediation": "Lock the account (sudo passwd -l backup), set 'PermitEmptyPasswords no' and reload sshd. Review authentication logs for prior logins.",
+      "verification": "sudo sshd -T | grep permitemptypasswords  -> no; sudo passwd -S backup  -> L",
+      "severity_rationale": "Critical: unauthenticated remote access, directly observed in two independent settings.",
+      "evidence": [
+        {
+          "description": "Account flags and sshd settings (sample, no hashes)",
+          "source": "/etc/shadow; sshd -T",
+          "data": {
+            "backup": "empty password field",
+            "permitemptypasswords": "[REDACTED]",
+            "passwordauthentication": "[REDACTED]"
+          },
+          "collected_at": "2026-10-27T04:05:35+00:00"
+        }
+      ],
+      "references": [
+        {
+          "kind": "CWE",
+          "identifier": "CWE-258",
+          "source": "MITRE CWE: Empty Password in Configuration File",
+          "cvss_score": null,
+          "cvss_version": null,
+          "cvss_vector": null
+        }
+      ],
+      "manual_validation_required": false,
+      "check_id": "DEMO-LNX-ACCT-001",
+      "finding_id": "DEMO-LNX-ACCT-001-01",
+      "fingerprint": "c8972959bcc88ed2",
+      "risk_score": 10.0,
+      "priority": "immediate"
+    },
     {
       "title": "SMBv1 server protocol is enabled",
       "severity": "high",
@@ -205,7 +303,7 @@
           "data": {
             "EnableSMB1Protocol": true
           },
-          "collected_at": "2026-10-26T23:54:01+00:00"
+          "collected_at": "2026-10-27T04:05:35+00:00"
         }
       ],
       "references": [
@@ -250,7 +348,7 @@
           "description": "Effective sshd settings (sample)",
           "source": "sshd -T",
           "data": "permitrootlogin yes\npasswordauthentication yes",
-          "collected_at": "2026-10-26T23:54:01+00:00"
+          "collected_at": "2026-10-27T04:05:35+00:00"
         }
       ],
       "references": [
@@ -269,6 +367,59 @@
       "fingerprint": "32ad2829caa2d0df",
       "risk_score": 7.5,
       "priority": "immediate"
+    },
+    {
+      "title": "examplelib: 3 known vulnerabilities affect the installed version",
+      "severity": "high",
+      "status": "potential",
+      "affected_host": "demo-host.example.internal",
+      "affected_component": "Package examplelib (libexample1 1.2-1ubuntu0.1)",
+      "description": "[DEMO DATA - not from a real system] The installed version is affected by 3 advisories (fictitious identifiers CVE-2099-0001..0003); 2 are fixed in a newer package and 1 has no fix yet.",
+      "impact": "Publicly documented vulnerabilities may allow attackers to compromise software that uses the library.",
+      "confidence": "high",
+      "remediation": "Update examplelib to 1.2-1ubuntu0.5 or later (sudo apt install --only-upgrade libexample1), then restart services that use it.",
+      "verification": "dpkg-query -W libexample1 shows 1.2-1ubuntu0.5 or later.",
+      "severity_rationale": "High: highest rating among the matching advisories is CVSS v3.1 base score 8.1 (sample data). Potential because the match is version-based.",
+      "evidence": [
+        {
+          "description": "Matching advisories (sample)",
+          "source": "offline vulnerability data",
+          "data": [
+            {
+              "advisory": "CVE-2099-0001",
+              "cvss": 8.1,
+              "fixed": "1.2-1ubuntu0.5"
+            },
+            {
+              "advisory": "CVE-2099-0002",
+              "cvss": 5.3,
+              "fixed": "1.2-1ubuntu0.3"
+            },
+            {
+              "advisory": "CVE-2099-0003",
+              "cvss": null,
+              "fixed": null
+            }
+          ],
+          "collected_at": "2026-10-27T04:05:35+00:00"
+        }
+      ],
+      "references": [
+        {
+          "kind": "CVE",
+          "identifier": "CVE-2099-0001",
+          "source": "Sample data (fictitious)",
+          "cvss_score": 8.1,
+          "cvss_version": "3.1",
+          "cvss_vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H"
+        }
+      ],
+      "manual_validation_required": true,
+      "check_id": "DEMO-VULN-001",
+      "finding_id": "DEMO-VULN-001-01",
+      "fingerprint": "ecb852431386dd13",
+      "risk_score": 6.0,
+      "priority": "short-term"
     },
     {
       "title": "Remote Desktop allows connections without Network Level Authentication",
@@ -290,7 +441,7 @@
             "fDenyTSConnections": 0,
             "UserAuthentication": 0
           },
-          "collected_at": "2026-10-26T23:54:01+00:00"
+          "collected_at": "2026-10-27T04:05:35+00:00"
         }
       ],
       "references": [
@@ -331,7 +482,7 @@
             "libssl3t64/noble-security 3.0.13-0ubuntu3.5",
             "sudo/noble-security 1.9.15p5-3ubuntu5.1"
           ],
-          "collected_at": "2026-10-26T23:54:01+00:00"
+          "collected_at": "2026-10-27T04:05:35+00:00"
         }
       ],
       "references": [],
@@ -364,7 +515,7 @@
               "mountpoint": "/"
             }
           },
-          "collected_at": "2026-10-26T23:54:01+00:00"
+          "collected_at": "2026-10-27T04:05:35+00:00"
         }
       ],
       "references": [],
@@ -374,10 +525,97 @@
       "fingerprint": "109dce2d064be18f",
       "risk_score": 0.8,
       "priority": "planned"
+    },
+    {
+      "title": "Baseline deviation: Default umask is 027 or stricter",
+      "severity": "low",
+      "status": "confirmed",
+      "affected_host": "demo-host.example.internal",
+      "affected_component": "'UMASK' in /etc/login.defs (Example Ubuntu Server Baseline v1.0 ACC-02)",
+      "description": "[DEMO DATA - not from a real system] Expected 'UMASK' in /etc/login.defs to be one of ['027', '077']; observed: 022.",
+      "impact": "New files may be readable by other local users.",
+      "confidence": "high",
+      "remediation": "Set 'UMASK 027' in /etc/login.defs.",
+      "verification": "Re-run the assessment and confirm rule ACC-02 passes.",
+      "severity_rationale": "Low: severity assigned by the baseline author; the observed value was read directly.",
+      "evidence": [
+        {
+          "description": "Observed vs expected (sample)",
+          "source": "baseline collector 'file_kv'",
+          "data": {
+            "expected": "one of ['027', '077']",
+            "observed": "022"
+          },
+          "collected_at": "2026-10-27T04:05:35+00:00"
+        }
+      ],
+      "references": [
+        {
+          "kind": "BASELINE",
+          "identifier": "Example Ubuntu Server Baseline v1.0 rule ACC-02",
+          "source": "Example organisational policy (demo)",
+          "cvss_score": null,
+          "cvss_version": null,
+          "cvss_vector": null
+        }
+      ],
+      "manual_validation_required": false,
+      "check_id": "DEMO-BASE-001",
+      "finding_id": "DEMO-BASE-001-02",
+      "fingerprint": "25d3188acdc3b01e",
+      "risk_score": 2.5,
+      "priority": "planned"
+    },
+    {
+      "title": "Baseline 'Example Ubuntu Server Baseline': 17 of 19 evaluated rules met (89%)",
+      "severity": "informational",
+      "status": "informational",
+      "affected_host": "demo-host.example.internal",
+      "affected_component": "Baseline Example Ubuntu Server Baseline v1.0",
+      "description": "[DEMO DATA - not from a real system] 2 rules deviate and 2 could not be evaluated without root. This compares configuration with the supplied baseline; it is not a formal compliance assessment.",
+      "impact": "Deviations are listed as separate findings.",
+      "confidence": "high",
+      "remediation": "Remediate the deviations, or record approved exceptions in the baseline.",
+      "verification": "Re-run the assessment after changes.",
+      "severity_rationale": "Informational summary of the baseline comparison.",
+      "evidence": [
+        {
+          "description": "Rule results (sample)",
+          "source": "baseline Example Ubuntu Server Baseline v1.0",
+          "data": {
+            "passed": 17,
+            "failed": [
+              "ACC-02",
+              "FILE-03"
+            ],
+            "inconclusive": [
+              "SSH-01",
+              "SSH-02"
+            ]
+          },
+          "collected_at": "2026-10-27T04:05:35+00:00"
+        }
+      ],
+      "references": [
+        {
+          "kind": "BASELINE",
+          "identifier": "Example Ubuntu Server Baseline v1.0",
+          "source": "Example organisational policy (demo)",
+          "cvss_score": null,
+          "cvss_version": null,
+          "cvss_vector": null
+        }
+      ],
+      "manual_validation_required": false,
+      "check_id": "DEMO-BASE-001",
+      "finding_id": "DEMO-BASE-001-01",
+      "fingerprint": "a667fd2bf3ee89ec",
+      "risk_score": 0.0,
+      "priority": "monitoring"
     }
   ],
   "integrity": {
     "algorithm": "sha256",
-    "canonical_sha256": "d52cb885fc8b6442769eff2f87464081fb1efbf79aa4254032a484f709636b5f"
+    "canonical_sha256": "e8e8b84af31fba4c21e2c77d3d8c6b1d7d1862e0db359c006a0449499c88b71f"
   }
 }

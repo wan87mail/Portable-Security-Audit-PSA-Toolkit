@@ -188,7 +188,7 @@ def cmd_audit(tk: Toolkit, args: argparse.Namespace) -> int:
             return EXIT_USAGE
     else:
         selected = sorted(available) if demo else [m.module_id for m in tk.available_modules()
-                                                     if m.category == "local"]
+                                                     if m.category in ("local", "baseline")]
     try:
         authorization = _authorize(tk, args, demo)
         if not demo:
@@ -308,6 +308,50 @@ def cmd_reports(tk: Toolkit, args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_baselines(tk: Toolkit, args: argparse.Namespace) -> int:
+    from psatoolkit.core.baseline import load_directory
+
+    directory = Path(tk.config.baselines.directory)
+    baselines, errors = load_directory(directory)
+    _print(f"Baselines in {directory}:")
+    for b in baselines:
+        applies = "applies" if b.applies_to(tk.os_info.family, tk.os_info.distro_id) else "not for this OS"
+        _print(f"  {b.name} v{b.version}  [{b.os_family}{'/' + ','.join(b.distros) if b.distros else ''}]  "
+               f"{len(b.rules)} rules  {applies}  sha256={b.sha256[:16]}...  ({b.path.name if b.path else ''})")
+    for err in errors:
+        _print(f"  REJECTED {err}")
+    if not baselines and not errors:
+        _print("  none (import one with 'import-baseline <file>')")
+    return EXIT_ERROR if errors else EXIT_OK
+
+
+def cmd_import_baseline(tk: Toolkit, args: argparse.Namespace) -> int:
+    """Validate a baseline file and copy it into the drive's baselines/ folder."""
+    from psatoolkit.core.baseline import BaselineError, load_baseline
+    from psatoolkit.core.session import import_baseline_file
+
+    try:
+        target = import_baseline_file(tk, Path(args.file), replace=args.replace)
+    except BaselineError as exc:
+        _err(f"Baseline rejected: {exc}")
+        return EXIT_USAGE
+    except FileExistsError as exc:
+        _err(str(exc))
+        return EXIT_USAGE
+    except OSError as exc:
+        _err(f"Import failed: {exc}")
+        return EXIT_ERROR
+    baseline = load_baseline(target)
+    by_type: dict[str, int] = {}
+    for r in baseline.rules:
+        by_type[r.check_type] = by_type.get(r.check_type, 0) + 1
+    _print(f"Imported '{baseline.name}' v{baseline.version} ({len(baseline.rules)} rules) -> {target}")
+    _print("  rule types: " + ", ".join(f"{k}={v}" for k, v in sorted(by_type.items())))
+    _print(f"  SHA-256: {baseline.sha256}")
+    _print("Rebuild the drive integrity manifest now (build-manifest) so the baseline is covered by 'verify'.")
+    return EXIT_OK
+
+
 def cmd_build_manifest(tk: Toolkit, args: argparse.Namespace) -> int:
     path, digest = write_manifest(tk.paths.root, __version__)
     _print(f"Wrote {path}\nManifest SHA-256: {digest}\nRecord this value in the release notes / change ticket.")
@@ -370,13 +414,17 @@ def build_parser() -> argparse.ArgumentParser:
     r = sub.add_parser("reports", help="list previous reports")
     r.add_argument("--output", help="directory to look in (default: USB reports/)")
     sub.add_parser("build-manifest", help="(release preparation) write checksums/manifest.json")
+    sub.add_parser("baselines", help="list imported security baselines")
+    ib = sub.add_parser("import-baseline", help="validate a baseline JSON file and copy it to baselines/")
+    ib.add_argument("file")
+    ib.add_argument("--replace", action="store_true", help="overwrite an existing baseline with the same name")
     return p
 
 
 COMMANDS = {
     "gui": cmd_gui, "info": cmd_info, "modules": cmd_modules, "audit": cmd_audit,
     "preview-scan": cmd_preview_scan, "verify": cmd_verify, "verify-report": cmd_verify_report,
-    "export-report": cmd_export_report,
+    "export-report": cmd_export_report, "baselines": cmd_baselines, "import-baseline": cmd_import_baseline,
     "verify-log": cmd_verify_log, "reports": cmd_reports, "build-manifest": cmd_build_manifest,
 }
 

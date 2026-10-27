@@ -21,10 +21,11 @@ from typing import Any, Callable
 from psatoolkit import TOOL_NAME, __version__
 from psatoolkit.core.authorization import (AUTHORIZATION_NOTICE, AuthorizationError, AuthorizationRecord,
                                            create_authorization)
+from psatoolkit.core.baseline import BaselineError
 from psatoolkit.core.models import Severity
 from psatoolkit.core.paths import OutputDirError
 from psatoolkit.core.privileges import elevation_help
-from psatoolkit.core.session import SessionOutcome, Toolkit
+from psatoolkit.core.session import SessionOutcome, Toolkit, import_baseline_file
 from psatoolkit.core.stop import StopToken
 from psatoolkit.core.validation import ValidationError, parse_ports, parse_target
 from psatoolkit.reporting import verify_report_folder
@@ -136,9 +137,25 @@ class ModuleSelectionDialog:
                 ttk.Checkbutton(win, text=f"{module.name} - {reason}", state="disabled").pack(anchor="w", padx=18)
         buttons = ttk.Frame(win)
         buttons.pack(fill="x", **PAD)
+        ttk.Button(buttons, text="Import baseline...", command=self._import).pack(side="left", **PAD)
         ttk.Button(buttons, text="OK", command=self._ok).pack(side="right", **PAD)
         ttk.Button(buttons, text="Cancel", command=win.destroy).pack(side="right", **PAD)
+        self.toolkit = toolkit
         win.wait_window()
+
+    def _import(self) -> None:
+        """Validate a baseline file and copy it into the drive's baselines folder."""
+        chosen = filedialog.askopenfilename(parent=self.win, title="Import security baseline",
+                                            filetypes=[("PSA baseline", "*.json")])
+        if not chosen:
+            return
+        try:
+            target = import_baseline_file(self.toolkit, Path(chosen))
+        except (BaselineError, OSError, FileExistsError) as exc:
+            messagebox.showerror("Import baseline", str(exc), parent=self.win)
+            return
+        messagebox.showinfo("Import baseline", f"Imported to {target}.\n\nRebuild the drive integrity manifest so "
+                                               "the baseline is covered by 'Verify Tool Integrity'.", parent=self.win)
 
     def _ok(self) -> None:
         chosen = {k for k, v in self.vars.items() if v.get()}
@@ -272,7 +289,8 @@ class Dashboard:
         self.stop_token: StopToken | None = None
         self.worker: threading.Thread | None = None
         self.last_outcome: SessionOutcome | None = None
-        self.selected = {m.module_id for m in toolkit.available_modules() if m.category == "local"}
+        self.selected = {m.module_id for m in toolkit.available_modules()
+                         if m.category in ("local", "baseline")}
         self.output_dir: Path | None = None
 
         root.title(f"{TOOL_NAME} {__version__}")

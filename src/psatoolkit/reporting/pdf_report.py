@@ -7,7 +7,8 @@ from typing import Any
 
 from psatoolkit.reporting.pdfgen import BOLD, MONO, REGULAR, Flow, PdfDocument, hex_color
 from psatoolkit.reporting.view import (CHECK_STATUS_LABELS, PRIORITIES, PRIORITY_HELP, PRIORITY_TITLES,
-                                       RECURRING_ACTIVITIES, SEVERITIES, STATUS_LABELS, ReportView, evidence_text,
+                                       RECURRING_ACTIVITIES, SEVERITIES, STATUS_LABELS, ReportView, data_source_text,
+                                       evidence_text,
                                        fmt_time, reference_text)
 
 SEV_COLORS = {"critical": hex_color("7f1d1d"), "high": hex_color("b91c1c"), "medium": hex_color("b45309"),
@@ -157,9 +158,10 @@ def render(doc: dict[str, Any]) -> bytes:
         f.space(4)
     if not groups_l:
         f.paragraph("No limitations were recorded.", 9.5)
-    for s in v.data_sources:
-        f.paragraph(f"Data source: {s.get('type')} snapshot {s.get('snapshot_date')} ({s.get('age_days')} days old), "
-                    f"{s.get('record_count')} records, ecosystem {s.get('ecosystem')}.", 9)
+    if v.data_sources:
+        f.paragraph("Data sources", 10, BOLD)
+        for s in v.data_sources:
+            f.paragraph(f"-  {data_source_text(s)}", 9, indent=8)
     f.heading("Report integrity", 1)
     f.key_values([("Assessment ID", str(integ["assessment_id"])), ("Tool version", str(integ["tool_version"])),
                   ("Report generated", fmt_time(integ["generated_at"])),

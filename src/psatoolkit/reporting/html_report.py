@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from psatoolkit.reporting.view import (CHECK_STATUS_LABELS, PRIORITIES, PRIORITY_HELP, PRIORITY_TITLES,
-                                       RECURRING_ACTIVITIES, SEVERITIES, STATUS_LABELS, ReportView, evidence_text,
-                                       fmt_time, reference_text)
+                                       RECURRING_ACTIVITIES, SEVERITIES, STATUS_LABELS, ReportView, data_source_text,
+                                       evidence_text, fmt_time, reference_text)
 
 
 def e(value: Any) -> str:
@@ -162,10 +162,7 @@ def render(doc: dict[str, Any]) -> str:
             f"<li>{('<span class=mono>' + e(l['check_id']) + '</span>: ') if l.get('check_id') else ''}"
             f"{e(l['description'])}</li>" for l in items) + "</ul>" for cat, items in sorted(lim_groups.items())
     ) or "<p>No limitations were recorded.</p>"
-    sources = "".join(
-        f"<li>{e(s.get('type'))}: snapshot {e(s.get('snapshot_date'))} ({e(s.get('age_days'))} days old), "
-        f"{e(s.get('record_count'))} records, ecosystem {e(s.get('ecosystem'))}; sources: "
-        f"{e(', '.join(str(x.get('name')) for x in s.get('sources') or []))}</li>" for s in v.data_sources)
+    sources = "".join(f"<li>{e(data_source_text(s))}</li>" for s in v.data_sources)
     integ = v.integrity
     demo = ('<p class="demo">DEMONSTRATION REPORT: all findings are sample data and do not describe a real system.'
             '</p>' if v.is_demo else "")

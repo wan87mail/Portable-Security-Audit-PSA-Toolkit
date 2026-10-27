@@ -56,6 +56,23 @@ class ReportSummary:
     severity_counts: dict[str, int]
 
 
+def import_baseline_file(toolkit: "Toolkit", source: Path, replace: bool = False) -> Path:
+    """Validate a baseline and copy it into the configured baselines directory. Returns the target path."""
+    import shutil
+
+    from psatoolkit.core.baseline import load_baseline
+    from psatoolkit.core.validation import safe_filename
+
+    baseline = load_baseline(source)                     # raises BaselineError when invalid
+    directory = Path(toolkit.config.baselines.directory)
+    target = directory / f"{safe_filename(baseline.name)}.json"
+    if target.exists() and not replace:
+        raise FileExistsError(f"{target} already exists (use replace to overwrite).")
+    directory.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, target)
+    return target
+
+
 class Toolkit:
     def __init__(self, root: Path | None = None, config_file: Path | None = None,
                  os_info: OSInfo | None = None, elevated: bool | None = None,
@@ -65,6 +82,8 @@ class Toolkit:
         self.modules: list[Module] = load_modules()
         vd = Path(self.config.vulndata.directory) if self.config.vulndata.directory else self.paths.vulndata_dir
         self.config.vulndata.directory = str(vd if vd.is_absolute() else self.paths.root / vd)
+        bd = Path(self.config.baselines.directory) if self.config.baselines.directory else self.paths.baselines_dir
+        self.config.baselines.directory = str(bd if bd.is_absolute() else self.paths.root / bd)
         self.engine = AssessmentEngine(self.modules, self.config)
         self.os_info = os_info or detect_os()
         self.hostname = hostname or get_hostname()

@@ -63,6 +63,12 @@ class VulnDataConfig:
 
 
 @dataclass
+class BaselineConfig:
+    directory: str = ""            # empty = <USB root>/baselines
+    enabled: list[str] = field(default_factory=list)   # baseline names; empty = all applicable
+
+
+@dataclass
 class AppConfig:
     offline_mode: bool = True
     output_dir: str = ""
@@ -71,6 +77,7 @@ class AppConfig:
     network: NetworkConfig = field(default_factory=NetworkConfig)
     reporting: ReportingConfig = field(default_factory=ReportingConfig)
     vulndata: VulnDataConfig = field(default_factory=VulnDataConfig)
+    baselines: BaselineConfig = field(default_factory=BaselineConfig)
     warnings: list[str] = field(default_factory=list)
     sources: list[str] = field(default_factory=list)
 
@@ -231,6 +238,13 @@ def build_config(data: dict[str, Any]) -> AppConfig:
     cfg.vulndata.directory = b.get("vulnerability_data", "directory", "", str)
     cfg.vulndata.max_age_days = b.clamp("vulnerability_data", "max_age_days",
                                         b.get("vulnerability_data", "max_age_days", 30, int), 1, 3650)
+
+    cfg.baselines.directory = b.get("baselines", "directory", "", str)
+    enabled = data.get("baselines", {}).get("enabled", [])
+    if not isinstance(enabled, list) or not all(isinstance(x, str) for x in enabled):
+        b.warnings.append("[baselines].enabled must be a list of baseline names; using all applicable")
+        enabled = []
+    cfg.baselines.enabled = enabled
 
     cfg.warnings = b.warnings
     return cfg

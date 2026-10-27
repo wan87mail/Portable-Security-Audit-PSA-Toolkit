@@ -221,7 +221,7 @@ def test_view_recommendations_and_roadmap(demo_folder):
     groups = v.by_priority()
     assert sum(len(x) for x in groups.values()) == len(v.findings)
     assert [f["risk_score"] for f in v.top_risks()] == sorted([f["risk_score"] for f in v.top_risks()], reverse=True)
-    assert v.counts["high"] == 2 and v.is_demo
+    assert v.counts["high"] == 3 and v.counts["critical"] == 1 and v.is_demo
 
 
 # -- CLI ------------------------------------------------------------------------------------------------------
@@ -241,3 +241,13 @@ def test_cli_writes_all_formats_and_exports(portable_root, tmp_path, monkeypatch
     assert run("export-report", str(folder), str(tmp_path / "x"), "--formats", "docx") == cli.EXIT_USAGE
     (folder / "findings.csv").write_text("tampered")
     assert run("verify-report", str(folder)) == cli.EXIT_INTEGRITY
+
+
+def test_demo_covers_every_severity_status_and_data_source(demo_folder):
+    doc = json.loads((demo_folder / "report.json").read_text())
+    assert {f["severity"] for f in doc["findings"]} == {"critical", "high", "medium", "low", "informational"}
+    assert {f["status"] for f in doc["findings"]} == {"confirmed", "potential", "informational", "inconclusive"}
+    assert {s["type"] for s in doc["assessment"]["data_sources"]} == {"vulnerability_data", "baseline"}
+    assert {c["status"] for c in doc["checks"]} >= {"findings", "error", "skipped"}
+    html = (demo_folder / "report.html").read_text()
+    assert "Baseline &#x27;Example Ubuntu Server Baseline&#x27; v1.0" in html and "Vulnerability data snapshot" in html

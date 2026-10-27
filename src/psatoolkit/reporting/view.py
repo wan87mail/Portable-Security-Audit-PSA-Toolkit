@@ -101,6 +101,19 @@ def evidence_summary(finding: dict[str, Any], limit: int = 300) -> str:
     return " | ".join(parts)[: limit * 2]
 
 
+def data_source_text(s: dict[str, Any]) -> str:
+    """One-line description of a data source used by the assessment."""
+    if s.get("type") == "baseline":
+        return (f"Baseline '{s.get('name')}' v{s.get('version')} ({s.get('file')}, SHA-256 {str(s.get('sha256'))[:16]}...): "
+                f"{s.get('passed')} passed, {s.get('failed')} failed, {s.get('inconclusive')} inconclusive of "
+                f"{s.get('rules')} rules")
+    if s.get("type") == "vulnerability_data":
+        names = ", ".join(str(x.get("name")) for x in s.get("sources") or [])
+        return (f"Vulnerability data snapshot {s.get('snapshot_date')} ({s.get('age_days')} days old), "
+                f"{s.get('record_count')} records, ecosystem {s.get('ecosystem')}" + (f"; source: {names}" if names else ""))
+    return ", ".join(f"{k}={v}" for k, v in s.items())
+
+
 class ReportView:
     """Derived, read-only view over a report document."""
 

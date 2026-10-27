@@ -24,7 +24,7 @@ def test_demo_audit_end_to_end(run, portable_root, capsys, monkeypatch):
     assert run("audit", "--demo", *AUTH) == cli.EXIT_OK
     out = capsys.readouterr().out
     assert "AUTHORIZED USE ONLY" in out
-    assert "high=2" in out
+    assert "critical=1, high=3" in out
     reports = list((portable_root / "reports").glob("PSA-*/report.json"))
     assert len(reports) == 1
     assert run("verify-report", str(reports[0])) == cli.EXIT_OK

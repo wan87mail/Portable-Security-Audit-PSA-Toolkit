@@ -38,5 +38,10 @@ include_raw_evidence = true        # evidence is always redacted
 directory = ""                     # empty = <USB root>/vulndata
 max_age_days = 30                  # older snapshots are flagged as a limitation
 
+[baselines]
+# Module F compares the system with imported baselines (see docs/BASELINES.md).
+directory = ""                     # empty = <USB root>/baselines
+enabled = []                       # baseline names to use; empty = every applicable baseline
+
 [logging]
 level = "INFO"                     # DEBUG, INFO, WARNING, ERROR

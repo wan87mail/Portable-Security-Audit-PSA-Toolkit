@@ -156,6 +156,103 @@ class DemoInfoCheck(_DemoCheck):
         )]
 
 
+class DemoEmptyPasswordCheck(_DemoCheck):
+    check_id = "DEMO-LNX-ACCT-001"
+    title = "Empty password with SSH access (sample)"
+
+    def run(self, ctx: AssessmentContext) -> list[Finding]:
+        return [ctx.finding(
+            self, host=DEMO_HOST,
+            title="Account 'backup' has an empty password and SSH permits empty passwords",
+            severity=Severity.CRITICAL, status=FindingStatus.CONFIRMED,
+            component="/etc/shadow and sshd (PermitEmptyPasswords yes)",
+            description=DEMO_NOTE + "The 'backup' account has no password, and the effective sshd configuration "
+                        "allows empty-password logins with password authentication enabled.",
+            impact="Anyone who can reach SSH can log in as 'backup' without credentials.",
+            confidence=Confidence.HIGH,
+            remediation="Lock the account (sudo passwd -l backup), set 'PermitEmptyPasswords no' and reload sshd. "
+                        "Review authentication logs for prior logins.",
+            verification="sudo sshd -T | grep permitemptypasswords  -> no; sudo passwd -S backup  -> L",
+            severity_rationale="Critical: unauthenticated remote access, directly observed in two independent "
+                               "settings.",
+            evidence=[ctx.evidence("Account flags and sshd settings (sample, no hashes)", "/etc/shadow; sshd -T",
+                                   {"backup": "empty password field", "permitemptypasswords": "yes",
+                                    "passwordauthentication": "yes"})],
+            references=[Reference(ReferenceKind.CWE, "CWE-258", "MITRE CWE: Empty Password in Configuration File")],
+        )]
+
+
+class DemoVulnerablePackageCheck(_DemoCheck):
+    check_id = "DEMO-VULN-001"
+    title = "Known vulnerabilities in installed software (sample)"
+
+    def run(self, ctx: AssessmentContext) -> list[Finding]:
+        ctx.data_sources.append({"type": "vulnerability_data", "snapshot_date": "2026-10-20", "age_days": 6,
+                                 "record_count": 64210, "ecosystem": "ubuntu:24.04",
+                                 "sources": [{"name": "Sample snapshot (demo)"}]})
+        return [ctx.finding(
+            self, host=DEMO_HOST,
+            title="examplelib: 3 known vulnerabilities affect the installed version",
+            severity=Severity.HIGH, status=FindingStatus.POTENTIAL,
+            component="Package examplelib (libexample1 1.2-1ubuntu0.1)",
+            description=DEMO_NOTE + "The installed version is affected by 3 advisories (fictitious identifiers "
+                        "CVE-2099-0001..0003); 2 are fixed in a newer package and 1 has no fix yet.",
+            impact="Publicly documented vulnerabilities may allow attackers to compromise software that uses the "
+                   "library.",
+            confidence=Confidence.HIGH,
+            remediation="Update examplelib to 1.2-1ubuntu0.5 or later (sudo apt install --only-upgrade libexample1), "
+                        "then restart services that use it.",
+            verification="dpkg-query -W libexample1 shows 1.2-1ubuntu0.5 or later.",
+            severity_rationale="High: highest rating among the matching advisories is CVSS v3.1 base score 8.1 "
+                               "(sample data). Potential because the match is version-based.",
+            evidence=[ctx.evidence("Matching advisories (sample)", "offline vulnerability data",
+                                   [{"advisory": "CVE-2099-0001", "cvss": 8.1, "fixed": "1.2-1ubuntu0.5"},
+                                    {"advisory": "CVE-2099-0002", "cvss": 5.3, "fixed": "1.2-1ubuntu0.3"},
+                                    {"advisory": "CVE-2099-0003", "cvss": None, "fixed": None}])],
+            references=[Reference(ReferenceKind.CVE, "CVE-2099-0001", "Sample data (fictitious)", 8.1, "3.1",
+                                  "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H")],
+            manual_validation_required=True,
+        )]
+
+
+class DemoBaselineCheck(_DemoCheck):
+    check_id = "DEMO-BASE-001"
+    title = "Organisational baseline comparison (sample)"
+
+    def run(self, ctx: AssessmentContext) -> list[Finding]:
+        label = "Example Ubuntu Server Baseline v1.0"
+        ctx.data_sources.append({"type": "baseline", "name": "Example Ubuntu Server Baseline", "version": "1.0",
+                                 "file": "example-ubuntu-server.json", "sha256": "0" * 64, "rules": 21,
+                                 "passed": 17, "failed": 2, "inconclusive": 2})
+        ref = Reference(ReferenceKind.BASELINE, label, "Example organisational policy (demo)")
+        return [
+            ctx.finding(
+                self, host=DEMO_HOST, title="Baseline 'Example Ubuntu Server Baseline': 17 of 19 evaluated rules met (89%)",
+                severity=Severity.INFO, status=FindingStatus.INFORMATIONAL, component=f"Baseline {label}",
+                description=DEMO_NOTE + "2 rules deviate and 2 could not be evaluated without root. This compares "
+                            "configuration with the supplied baseline; it is not a formal compliance assessment.",
+                impact="Deviations are listed as separate findings.", confidence=Confidence.HIGH,
+                remediation="Remediate the deviations, or record approved exceptions in the baseline.",
+                verification="Re-run the assessment after changes.",
+                severity_rationale="Informational summary of the baseline comparison.",
+                evidence=[ctx.evidence("Rule results (sample)", f"baseline {label}",
+                                       {"passed": 17, "failed": ["ACC-02", "FILE-03"], "inconclusive": ["SSH-01", "SSH-02"]})],
+                references=[ref]),
+            ctx.finding(
+                self, host=DEMO_HOST, title="Baseline deviation: Default umask is 027 or stricter",
+                severity=Severity.LOW, status=FindingStatus.CONFIRMED,
+                component=f"'UMASK' in /etc/login.defs ({label} ACC-02)",
+                description=DEMO_NOTE + "Expected 'UMASK' in /etc/login.defs to be one of ['027', '077']; observed: 022.",
+                impact="New files may be readable by other local users.", confidence=Confidence.HIGH,
+                remediation="Set 'UMASK 027' in /etc/login.defs.",
+                verification="Re-run the assessment and confirm rule ACC-02 passes.",
+                severity_rationale="Low: severity assigned by the baseline author; the observed value was read directly.",
+                evidence=[ctx.evidence("Observed vs expected (sample)", "baseline collector 'file_kv'",
+                                       {"expected": "one of ['027', '077']", "observed": "022"})],
+                references=[Reference(ReferenceKind.BASELINE, f"{label} rule ACC-02", ref.source)]),
+        ]
+
+
 class DemoFailingCheck(_DemoCheck):
     """Demonstrates that a failing check is isolated and reported as a limitation."""
 
@@ -182,8 +279,10 @@ def build_module() -> Module:
     return Module(
         module_id="demo",
         name="Demonstration (sample data)",
-        description="Produces labelled sample findings; executes no commands and sends no traffic.",
+        description="Produces labelled sample findings covering every severity and status, plus sample "
+                    "vulnerability and baseline results; executes no commands and sends no traffic.",
         category="demo",
-        checks=[DemoSmbCheck(), DemoRdpCheck(), DemoSshCheck(), DemoPatchCheck(), DemoInfoCheck(),
-                DemoFailingCheck(), DemoPrivilegedCheck()],
+        checks=[DemoEmptyPasswordCheck(), DemoSmbCheck(), DemoRdpCheck(), DemoSshCheck(), DemoPatchCheck(),
+                DemoInfoCheck(), DemoVulnerablePackageCheck(), DemoBaselineCheck(), DemoFailingCheck(),
+                DemoPrivilegedCheck()],
     )

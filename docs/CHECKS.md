@@ -1,6 +1,6 @@
 # Check catalogue
 
-Generated from the code by `scripts/gen_checks_doc.py` (toolkit 0.6.0). Do not edit by hand.
+Generated from the code by `scripts/gen_checks_doc.py` (toolkit 0.7.0). Do not edit by hand.
 
 All checks are read-only. **Admin** means the check is skipped without Administrator/root and the reason is listed in the report's limitations. Checks marked *partial* run without elevation but record reduced coverage.
 
@@ -69,6 +69,14 @@ Matches installed software against an offline, integrity-checked vulnerability s
 | ID | Check | OS | Admin | Needs | What it verifies |
 |---|---|---|---|---|---|
 | VULN-PKG-001 | Known vulnerabilities in installed software (offline data) | linux, windows | No | - | Compares installed package versions with the offline vulnerability snapshot (vendor fixed versions); no network access and no exploitation. |
+
+## F. Security baselines (organisation-supplied)
+
+Compares the system with imported baseline files and lists deviations.
+
+| ID | Check | OS | Admin | Needs | What it verifies |
+|---|---|---|---|---|---|
+| BASE-001 | Organisational security baselines | linux, windows | No | - | Compares the configuration with imported baseline files (baselines/*.json); reports deviations, not formal compliance. |
 
 ## Checks that use elevation when available (partial without it)
 

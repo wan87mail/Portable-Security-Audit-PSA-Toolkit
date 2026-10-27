@@ -7,6 +7,36 @@ the tool version and the OS build in your change ticket.
 Use a throw-away VM snapshot so you can confirm the "no changes" items by
 comparing before and after.
 
+## Demo mode (any computer, no authorization scope needed)
+
+- [ ] `audit --demo` produces findings at every severity (Critical to Informational) and every status
+      (confirmed, potential, inconclusive, informational).
+- [ ] The report shows one simulated check error and one privilege skip under *Limitations*, and sample
+      vulnerability-data and baseline entries under *Data sources*.
+- [ ] Every format carries the DEMONSTRATION banner; the audit log contains no `command_start` events.
+
+## Reports
+
+- [ ] `report.html` opens offline in Edge/Chrome/Firefox and prints with all findings expanded.
+- [ ] `report.pdf` opens in a PDF reader; page numbers read "Page X of Y".
+- [ ] `findings.csv` opens in Excel with correct columns; no cell runs as a formula.
+- [ ] `verify-report <folder>` passes, then fails after editing any file in the folder.
+- [ ] **Export Report** / `export-report` refuses a modified `report.json`.
+
+## Baselines (Module F)
+
+- [ ] `import-baseline baselines/examples/example-ubuntu-server.json` succeeds; importing it again without `--replace` is refused.
+- [ ] A baseline that reads `/etc/shadow` with `file_kv`, or that has a registry path containing a quote, is rejected with a clear message.
+- [ ] On an Ubuntu lab host, change `UMASK` in `/etc/login.defs` and confirm the rule result changes accordingly.
+- [ ] On Windows as a standard user, `auditpol` rules appear as *could not be evaluated* (privileges), not as passed.
+- [ ] The report's *Data sources* show the baseline name, version and SHA-256.
+
+## Vulnerability data (Module E)
+
+- [ ] With no `vulndata/` snapshot, VULN-PKG-001 is skipped with instructions.
+- [ ] After building a snapshot (docs/VULNDATA.md), an intentionally outdated lab package is reported with the fixed version.
+- [ ] Modifying `vulndata/records.jsonl` makes the check refuse the data (integrity failure).
+
 ## All platforms
 
 - [ ] `verify` passes on the prepared drive, and the manifest SHA-256 matches the release notes.

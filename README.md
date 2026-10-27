@@ -15,7 +15,7 @@ and servers you are **authorized** to assess.
 |---|---|
 | **Supported targets** | Windows 10 / 11, Windows Server 2019 / 2022 / 2025, Ubuntu 22.04 / 24.04, other Linux distributions (best-effort) |
 | **Requirements** | Python 3.10 or newer (standard library only, no `pip install` needed to run it). Tkinter is optional, for the GUI. |
-| **Current status** | Phases 1–3, 5 and 6 of 10 complete: 38 read-only checks, risk scoring, offline vulnerability matching, HTML/PDF/CSV reports. See [Project status](#project-status). |
+| **Current status** | Phases 1–3 and 5–7 of 10 complete: 39 read-only checks, risk scoring, offline vulnerability matching, organisational baselines, HTML/PDF/CSV reports. See [Project status](#project-status). |
 
 ## What it checks
 
@@ -24,6 +24,7 @@ and servers you are **authorized** to assess.
 | **A. System information** | Asset identity, OS support, interfaces and connections, listening ports, risky exposed services (Telnet, FTP, SNMP, Redis, Docker API...), installed software |
 | **B. Windows** | Firewall profiles, Defender/AV, SMBv1 and signing, RDP/NLA, UAC, password and lockout policy, Guest/local accounts, local admins, patch recency, BitLocker, risky services and unquoted paths, writable service binaries, WDigest/NTLM/LSA/LLMNR, legacy TLS, certificates, audit policy |
 | **E. Vulnerabilities** | Installed packages compared with an offline, integrity-checked advisory snapshot (CVE, CVSS, fixed versions); see [docs/VULNDATA.md](docs/VULNDATA.md) |
+| **F. Baselines** | Your organisation's own required settings (JSON baseline files) compared with the system; deviations become findings. See [docs/BASELINES.md](docs/BASELINES.md) |
 | **C. Linux** | Pending security updates, SSH configuration, host firewall, UID-0 and privileged groups, sudo rules, empty/weak password hashes, PAM password and lockout policy, world-writable files, sensitive file permissions, SUID/SGID binaries, legacy services, disk encryption, AppArmor/SELinux, kernel sysctl hardening, service certificates |
 
 The full list, including which checks need Administrator/root and why, is in
@@ -214,6 +215,8 @@ PSA audit --demo              # safe demonstration with sample findings
 PSA audit                     # real local audit; prompts for name, reference and "I AM AUTHORIZED"
 PSA audit --output D:\reports # save reports elsewhere (for a read-only USB drive)
 PSA reports                   # list previous reports
+PSA baselines                 # list imported security baselines
+PSA import-baseline FILE      # validate a baseline and copy it to baselines/
 PSA verify                    # verify tool integrity
 PSA verify-report <report folder> # verify no report file has been altered
 PSA export-report <report folder> <dest> --formats html,pdf,csv   # copy/re-render for the IT administrator
@@ -310,7 +313,7 @@ and a warning is logged.
 
 ```bash
 python -m pip install pytest
-python -m pytest                                        # 390+ tests, mocked; no system changes
+python -m pytest                                        # 450+ tests, mocked; no system changes
 xvfb-run -a python -m pytest tests/test_gui_smoke.py    # GUI test on Linux (needs python3-tk)
 ```
 
@@ -351,7 +354,8 @@ PortableSecurityAudit/
 ├── tests/                       automated tests
 ├── docs/                        architecture, user guide, developer guide, phases, examples
 ├── vulndata/                    offline vulnerability snapshot for Module E (you build it; see docs/VULNDATA.md)
-├── baselines/  tools/           reserved for later phases
+├── baselines/                   imported organisational baselines (+ examples/); see docs/BASELINES.md
+├── tools/                       reserved for optional tools
 ├── reports/  logs/              created at run time (not stored in Git)
 └── checksums/                   integrity manifest (created when preparing the drive)
 ```
@@ -375,7 +379,7 @@ More detail:
 | 4 | Controlled network assessment | Not included in this build |
 | 5 | Risk scoring and vulnerability data (CVE/CVSS) | ✅ Done |
 | 6 | HTML, PDF and CSV reports | ✅ Done |
-| 7 | Security baselines and expanded demo | ⏳ Planned |
+| 7 | Security baselines and expanded demo | ✅ Done |
 | 8 | Standalone Windows `.exe` and Linux build | ⏳ Planned |
 | 9–10 | Security review, final documentation, release checklist | ⏳ Planned |
 

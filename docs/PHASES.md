@@ -8,7 +8,7 @@
 | 4 | Module D controlled network assessment | Not included in this build |
 | 5 | Finding normalisation, risk scoring, Module E vulnerability data (offline CVE/CVSS snapshots) | **Done** |
 | 6 | HTML, PDF, CSV reports; executive summary; remediation roadmap | **Done** |
-| 7 | Module F baselines and custom baseline import; expanded demo and test checklists | Planned |
+| 7 | Module F baselines and custom baseline import; expanded demo and test checklists | **Done** |
 | 8 | PyInstaller Windows `.exe`, Linux frozen build, USB preparation scripts | Planned |
 | 9 | Security, dependency and usability review | Planned |
 | 10 | Final documentation and release checklist | Planned |
@@ -97,6 +97,34 @@ The GUI opens the HTML report, and the report viewer verifies whole folders.
 
 Every format is rendered from the same integrity-checked `report.json`; a
 failure in one format is reported without losing the others.
+
+## Phase 7 deliverables
+
+| File | Purpose |
+|---|---|
+| `src/psatoolkit/core/baseline.py` | Baseline format "psa-baseline-1": strict validation, secret-path and injection protection, rule evaluation |
+| `src/psatoolkit/modules/baseline_audit.py` | Module F: BASE-001; 11 read-only collectors, batched Windows queries, per-rule findings and summary |
+| `baselines/examples/*.json` | Example Ubuntu server (21 rules) and Windows workstation (20 rules) baselines |
+| `docs/BASELINES.md` | Format, collectors, operators, security restrictions, severity guidance |
+| `src/psatoolkit/modules/demo.py` | Demo now covers every severity and status, plus sample vulnerability and baseline results |
+| `docs/TEST_CHECKLIST.md` | Expanded with demo, reports, baselines and vulnerability-data checks |
+
+New commands: `baselines` (list) and `import-baseline <file> [--replace]`;
+GUI: **Select Assessment Modules → Import baseline…**. Module F runs as part
+of the default local audit when an applicable baseline is imported.
+
+Verified on this Ubuntu 24.04 host: the example baseline reported real
+deviations (umask 022, crontab mode 0644, symlink protection off,
+unattended-upgrades missing, ufw not enabled), with SSH and AppArmor rules
+correctly *inconclusive* (no SSH server; systemd not running in the container).
+
+## Known limitations after Phase 7
+
+- The example baselines are illustrative, not an official benchmark.
+- `file_kv` parses simple key/value files; it does not understand nested
+  formats (YAML, INI sections, XML).
+- Windows baseline collectors are tested against mocked PowerShell output only
+  (as with Module B).
 
 ## Known limitations after Phase 6
 
