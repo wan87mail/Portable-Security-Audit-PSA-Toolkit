@@ -47,7 +47,8 @@ def _sha256(path: Path) -> str:
 def write_sums(folder: Path) -> Path:
     names = sorted(p.name for p in folder.iterdir() if p.is_file() and p.name != SUMS_FILE)
     path = folder / SUMS_FILE
-    path.write_text("".join(f"{_sha256(folder / n)}  {n}\n" for n in names), encoding="utf-8")
+    # newline="\n": LF on every OS so `sha256sum -c` works on files prepared under Windows.
+    path.write_text("".join(f"{_sha256(folder / n)}  {n}\n" for n in names), encoding="utf-8", newline="\n")
     return path
 
 

@@ -139,11 +139,11 @@ def test_ecosystem_for(distro, version, expected):
 def write_snapshot(directory, records, snapshot_date="2026-10-20", tamper=False):
     import hashlib
     directory.mkdir(parents=True, exist_ok=True)
-    data = "".join(json.dumps(r) + "\n" for r in records)
-    (directory / "records.jsonl").write_text(data)
-    digest = hashlib.sha256(data.encode()).hexdigest()
+    data = "".join(json.dumps(r) + "\n" for r in records).encode()
+    (directory / "records.jsonl").write_bytes(data)          # exact bytes (no CRLF translation on Windows)
+    digest = hashlib.sha256(data).hexdigest()
     if tamper:
-        (directory / "records.jsonl").write_text(data + json.dumps(records[0]) + "\n")
+        (directory / "records.jsonl").write_bytes(data + (json.dumps(records[0]) + "\n").encode())
     (directory / "manifest.json").write_text(json.dumps({
         "format": "psa-vulndata-1", "snapshot_date": snapshot_date, "record_count": len(records),
         "sources": [{"name": "unit test"}], "files": {"records.jsonl": digest}}))

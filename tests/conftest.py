@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import sys
 from pathlib import Path
 
 import pytest
@@ -12,6 +13,13 @@ from psatoolkit.core.config import AppConfig
 from psatoolkit.core.osdetect import SUPPORTED, OSInfo
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+# A harmless long-running command available on every supported OS (for stop/timeout tests).
+if sys.platform.startswith("win"):
+    LONG_COMMAND = ["ping", "-n", "30", "127.0.0.1"]
+else:
+    LONG_COMMAND = ["sleep", "20"]
+LONG_COMMAND_POLICY_RULES = {LONG_COMMAND[0]: lambda args: None}
 
 LINUX_OS = OSInfo(family="linux", name="Ubuntu 24.04 LTS", version="24.04", build="6.8.0",
                   architecture="x86_64", is_server=True, support_level=SUPPORTED, distro_id="ubuntu")

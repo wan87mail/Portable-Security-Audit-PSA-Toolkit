@@ -76,6 +76,11 @@ def test_all_formats_and_sums(demo_folder):
         assert subprocess.run(["sha256sum", "-c", "--quiet", "SHA256SUMS"], cwd=demo_folder).returncode == 0
 
 
+def test_integrity_files_use_lf_line_endings(demo_folder):
+    for name in ("SHA256SUMS", "report.json.sha256"):
+        assert b"\r" not in (demo_folder / name).read_bytes(), name
+
+
 def test_folder_verification_detects_tampering(demo_folder):
     (demo_folder / "report.html").write_text("<p>edited</p>")
     (demo_folder / "report.pdf").unlink()

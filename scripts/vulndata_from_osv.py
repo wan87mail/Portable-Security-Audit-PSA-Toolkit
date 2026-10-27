@@ -143,7 +143,7 @@ def build(inputs: list[Path], out: Path, wanted: set[str] | None, snapshot_date:
     out.mkdir(parents=True, exist_ok=True)
     tmp = out / "records.jsonl.tmp"
     count, bad, per_eco = 0, 0, Counter()
-    with tmp.open("w", encoding="utf-8") as fh:
+    with tmp.open("w", encoding="utf-8", newline="\n") as fh:   # identical bytes on every OS
         for _name, data in read_inputs(inputs):
             try:
                 entry = json.loads(data)
@@ -172,7 +172,7 @@ def build(inputs: list[Path], out: Path, wanted: set[str] | None, snapshot_date:
         "files": {"records.jsonl": hashlib.sha256(final.read_bytes()).hexdigest()},
         "skipped_invalid_entries": bad,
     }
-    (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n")
     return manifest
 
 

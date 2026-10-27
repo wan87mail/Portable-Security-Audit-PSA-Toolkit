@@ -6,6 +6,7 @@ import pytest
 
 from psatoolkit.core.safe_exec import CommandRunner, PolicyViolation, ReadOnlyPolicy
 from psatoolkit.core.stop import StopToken
+from conftest import LONG_COMMAND, LONG_COMMAND_POLICY_RULES
 
 posix_only = pytest.mark.skipif(sys.platform.startswith("win"), reason="uses POSIX utilities")
 
@@ -155,27 +156,24 @@ def test_successful_command_and_secure_environment():
     assert result.stdout.strip()
 
 
-@posix_only
 def test_timeout_is_enforced():
-    policy = ReadOnlyPolicy(rules={"sleep": lambda a: None})
-    runner = CommandRunner(policy=policy)
+    runner = CommandRunner(policy=ReadOnlyPolicy(rules=dict(LONG_COMMAND_POLICY_RULES)))
     started = time.monotonic()
-    result = runner.run(["sleep", "10"], timeout=0.5)
+    result = runner.run(LONG_COMMAND, timeout=0.5)
     elapsed = time.monotonic() - started
     assert result.timed_out and not result.ok
     assert elapsed < 5
 
 
-@posix_only
 def test_stop_token_kills_running_command():
     stop = StopToken()
-    runner = CommandRunner(stop_token=stop, policy=ReadOnlyPolicy(rules={"sleep": lambda a: None}))
+    runner = CommandRunner(stop_token=stop, policy=ReadOnlyPolicy(rules=dict(LONG_COMMAND_POLICY_RULES)))
     threading.Timer(0.3, stop.stop).start()
     started = time.monotonic()
-    result = runner.run(["sleep", "10"], timeout=30)
+    result = runner.run(LONG_COMMAND, timeout=60)
     assert result.cancelled
     assert time.monotonic() - started < 5
-    assert runner.run(["sleep", "1"]).cancelled  # nothing new starts after stop
+    assert runner.run(LONG_COMMAND).cancelled  # nothing new starts after stop
 
 
 @posix_only
