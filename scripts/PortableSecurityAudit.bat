@@ -18,12 +18,16 @@ if exist "%DIR%app\psatoolkit\__init__.py" (
     exit /b 1
 )
 
-where py >nul 2>nul
-if %ERRORLEVEL% neq 0 (
-    echo Python launcher 'py' not found. Use PortableSecurityAudit.exe instead.
+rem Use the installed py launcher by absolute path: cmd.exe would otherwise search the
+rem current directory and the host's PATH for "py" first.
+set "PY="
+if exist "%SystemRoot%\py.exe" set "PY=%SystemRoot%\py.exe"
+if not defined PY if exist "%LOCALAPPDATA%\Programs\Python\Launcher\py.exe" set "PY=%LOCALAPPDATA%\Programs\Python\Launcher\py.exe"
+if not defined PY (
+    echo Python launcher py.exe not found. Use PortableSecurityAudit.exe instead.
     exit /b 1
 )
 
 rem -I isolated mode ignores PYTHON* variables and user site-packages on the target.
-py -3 -I -B -c "import sys; sys.path.insert(0, sys.argv.pop(1)); from psatoolkit.cli import main; sys.exit(main())" "%APP%" %*
+"%PY%" -3 -I -B -c "import sys; sys.path.insert(0, sys.argv.pop(1)); from psatoolkit.cli import main; sys.exit(main())" "%APP%" %*
 exit /b %ERRORLEVEL%

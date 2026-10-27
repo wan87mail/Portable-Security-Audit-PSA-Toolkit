@@ -7,6 +7,9 @@
 #   bash PortableSecurityAudit.sh audit --demo
 # Using "bash <script>" works even when the USB is mounted noexec.
 set -euo pipefail
+# Trusted system tools only, never the host user's PATH; new files are owner-only.
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+umask 077
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

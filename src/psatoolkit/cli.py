@@ -130,6 +130,16 @@ def _add_targets(tk: Toolkit, args: argparse.Namespace) -> None:
             confirmed = phrase_matches(typed)
         entry = tk.scope.add(raw, ref, confirmed)
         _print(f"Authorized target added: {entry.target.raw} ({entry.target.host_count} host(s), ref {ref})")
+    if targets and not _has_network_module(tk):
+        _err(NO_NETWORK_NOTE)
+
+
+NO_NETWORK_NOTE = ("Note: this build includes no network assessment module. Remote targets are recorded in "
+                   "the report scope but are not contacted.")
+
+
+def _has_network_module(tk: Toolkit) -> bool:
+    return any(m.category == "network" for m in tk.modules)
 
 
 def _progress_printer(event: dict[str, Any]) -> None:
@@ -193,6 +203,8 @@ def cmd_audit(tk: Toolkit, args: argparse.Namespace) -> int:
         authorization = _authorize(tk, args, demo)
         if not demo:
             _add_targets(tk, args)
+        elif args.target:
+            _err("Note: --target is ignored in demo mode (no system is contacted or assessed).")
     except AuthorizationError as exc:
         _err(f"Authorization refused: {exc}")
         return EXIT_UNAUTHORIZED
@@ -242,6 +254,8 @@ def cmd_preview_scan(tk: Toolkit, args: argparse.Namespace) -> int:
         return EXIT_USAGE
     preview = tk.scope.preview(ports, tk.config.network.rate_limit_per_second)
     preview["note"] = "DRY RUN - no packets were sent. Authorization is still required for a real scan."
+    if not _has_network_module(tk):
+        preview["note"] += " " + NO_NETWORK_NOTE.removeprefix("Note: ")
     _print(json.dumps(preview, indent=2))
     return EXIT_OK
 
@@ -444,28 +458,30 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--demo", action="store_true", help="safe demonstration with sample findings")
     a.add_argument("--modules", help="comma-separated module ids (default: all local modules)")
     a.add_argument("--output", help="report output directory (if the USB drive is read-only)")
-    a.add_argument("--operator")
-    a.add_argument("--organization")
+    a.add_argument("--operator", help="your name (recorded in the report and audit log)")
+    a.add_argument("--organization", help="organisation that authorized the assessment")
     a.add_argument("--reference", help="authorization reference (ticket, engagement letter)")
     a.add_argument("--scope", help="scope statement")
     a.add_argument("--confirm", metavar="PHRASE",
                    help=f"non-interactive confirmation; must be exactly \"{CONFIRMATION_PHRASE}\"")
-    a.add_argument("--target", action="append", help="authorized remote target (IP, CIDR or hostname)")
+    a.add_argument("--target", action="append",
+                   help="authorized remote target (IP, CIDR or hostname); recorded in scope only, "
+                        "this build includes no network module")
     a.add_argument("--target-ref", action="append", help="permission reference for the matching --target")
 
-    s = sub.add_parser("preview-scan", help="dry run: show what a network scan would contact")
-    s.add_argument("--target", action="append", required=True)
-    s.add_argument("--ports")
+    s = sub.add_parser("preview-scan", help="dry run: show what a network scan would contact (sends nothing)")
+    s.add_argument("--target", action="append", required=True, help="IP, CIDR or hostname (repeatable)")
+    s.add_argument("--ports", help="ports or ranges, e.g. 22,80,443,8000-8100 (default from configuration)")
 
     sub.add_parser("verify", help="verify tool integrity against checksums/manifest.json")
     vr = sub.add_parser("verify-report", help="verify a report folder (SHA256SUMS + canonical hash) or report.json")
-    vr.add_argument("path")
+    vr.add_argument("path", help="report folder or report.json")
     ex = sub.add_parser("export-report", help="re-render a verified report into another folder/format")
     ex.add_argument("report", help="report folder or report.json")
     ex.add_argument("dest", help="destination folder (e.g. a share for the IT administrator)")
     ex.add_argument("--formats", default="html,pdf,csv", help="comma-separated: json,html,pdf,csv")
     vl = sub.add_parser("verify-log", help="verify an audit log hash chain")
-    vl.add_argument("path")
+    vl.add_argument("path", help="audit log file (logs/audit-*.jsonl)")
     r = sub.add_parser("reports", help="list previous reports")
     r.add_argument("--output", help="directory to look in (default: USB reports/)")
     sub.add_parser("build-manifest", help="(release preparation) write checksums/manifest.json")
@@ -473,7 +489,7 @@ def build_parser() -> argparse.ArgumentParser:
     st = sub.add_parser("selftest", help="check that this build contains every runtime component")
     st.add_argument("--require-gui", action="store_true", help="fail if the Tkinter GUI is unavailable")
     ib = sub.add_parser("import-baseline", help="validate a baseline JSON file and copy it to baselines/")
-    ib.add_argument("file")
+    ib.add_argument("file", help="baseline JSON file (format psa-baseline-1, see docs/BASELINES.md)")
     ib.add_argument("--replace", action="store_true", help="overwrite an existing baseline with the same name")
     return p
 

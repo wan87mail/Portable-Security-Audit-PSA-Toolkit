@@ -37,8 +37,8 @@ On a Windows 10/11 **build workstation** (not an assessment target):
    powershell -ExecutionPolicy Bypass -File packaging\build_windows.ps1
    ```
 
-   The script creates an isolated `.build-venv`, installs the pinned build tools
-   (`requirements-build.txt`), runs the test suite, builds with PyInstaller, smoke-tests the
+   The script creates an isolated `.build-venv`, installs the hash-locked build tools
+   (`requirements-build.lock`, with `--require-hashes`), runs the test suite, builds with PyInstaller, smoke-tests the
    result (`--version`, a demo assessment, report verification) and prints the SHA-256.
 
 3. Output: `dist\windows\PortableSecurityAudit\` (`PortableSecurityAudit.exe` plus `_internal\`).
@@ -134,7 +134,7 @@ convert them with `scripts/vulndata_from_osv.py`, then `prepare_usb.py --update 
 | The executable signature (Windows) | `Get-AuthenticodeSignature .\PortableSecurityAudit.exe` |
 | Vulnerability data | Checked automatically before use (its own `manifest.json` hashes) |
 | Reports | `verify-report <report folder>` |
-| Build dependencies | `requirements-build.txt` pins PyInstaller; review upgrades before changing the pin |
+| Build dependencies | `requirements-build.lock` hash-locks PyInstaller and its dependencies; CI actions are pinned to commit SHAs. To update, see [SECURITY_REVIEW.md](SECURITY_REVIEW.md) section 4 |
 
 ## 7. Running on an authorized target and exporting reports
 

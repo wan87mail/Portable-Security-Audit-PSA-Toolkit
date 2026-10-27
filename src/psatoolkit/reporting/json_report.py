@@ -20,6 +20,7 @@ from typing import Any
 
 from psatoolkit import TOOL_NAME, __version__
 from psatoolkit.core.models import AssessmentResult, to_jsonable
+from psatoolkit.core.paths import read_limited
 from psatoolkit.core.redaction import redact
 from psatoolkit.core.validation import safe_filename
 
@@ -57,9 +58,14 @@ def build_document(result: AssessmentResult, include_raw_evidence: bool = True) 
     return doc
 
 
+MAX_REPORT_BYTES = 200_000_000   # verification reads report folders handed over by others
+
+
 def report_folder(output_dir: Path, result: AssessmentResult) -> Path:
     folder = output_dir / f"{result.assessment_id}_{safe_filename(result.host.hostname)}"
-    folder.mkdir(parents=True, exist_ok=False)
+    # Owner-only on POSIX: a report lists the host's weaknesses (no effect on FAT/exFAT USB drives).
+    folder.parent.mkdir(parents=True, exist_ok=True)
+    folder.mkdir(mode=0o700, exist_ok=False)
     return folder
 
 
@@ -90,7 +96,7 @@ class ReportVerification:
 
 def verify_json_report(path: Path) -> ReportVerification:
     try:
-        raw = path.read_bytes()
+        raw = read_limited(path, MAX_REPORT_BYTES)
         doc = json.loads(raw.decode("utf-8"))
         recorded = doc["integrity"]["canonical_sha256"]
     except (OSError, ValueError, KeyError, TypeError) as exc:
@@ -100,7 +106,10 @@ def verify_json_report(path: Path) -> ReportVerification:
     sidecar = path.with_name(path.name + ".sha256")
     file_ok: bool | None = None
     if sidecar.is_file():
-        expected = sidecar.read_text(encoding="utf-8").split()[0].lower()
+        try:
+            expected = (read_limited(sidecar, 4096).decode("utf-8", "replace").split() or [""])[0].lower()
+        except OSError:
+            expected = ""
         file_ok = hashlib.sha256(raw).hexdigest() == expected
     parts = ["content hash " + ("OK" if canonical_ok else "MISMATCH")]
     if file_ok is not None:

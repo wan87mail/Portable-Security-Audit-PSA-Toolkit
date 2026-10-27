@@ -8,7 +8,7 @@
 | Principle | How it is enforced |
 |---|---|
 | Authorized use only | The engine refuses to start without an `AuthorizationRecord` (operator name, scope, confirmation). Remote targets need their own per-target permission reference. |
-| Read-only by default | All external commands go through `core/safe_exec.py`, which only runs **allow-listed executables** and rejects known state-changing sub-commands (e.g. `netsh ... set`, `reg add`, `sc config`, `systemctl start`). |
+| Read-only by default | All external commands go through `core/safe_exec.py`, which runs only the **15 programs the checks need** (least privilege), each limited to the read-only forms they use (e.g. `net accounts` only, `systemctl is-enabled/is-active/list-units`, `ip ... show`, `openssl x509 -noout`). Everything else, including `reg`, `netsh`, `sc` and `nmap`, is refused. See [SECURITY_REVIEW.md](SECURITY_REVIEW.md). |
 | No shell, no injection | Commands are argument arrays (`shell=False`). User input is validated (`core/validation.py`) and never concatenated into a command line. |
 | Fail-soft | Each check runs in isolation with its own timeout. An exception or timeout becomes a `CheckResult` with status `error`/`timeout` and a recorded limitation — the assessment continues. |
 | Explainable findings | Every `Finding` carries evidence, severity rationale, confidence, status (confirmed / potential / informational / inconclusive), references, remediation and verification steps. |
@@ -163,7 +163,7 @@ PortableSecurityAudit/
 ├── config/                       default.toml + local.toml overrides
 ├── modules/                      (reserved for data-only check packs)
 ├── baselines/                    Imported organisational baselines
-├── tools/                        Optional third-party tools (nmap, ...) by OS
+├── tools/                        Optional third-party tools by OS (openssl only, see SECURITY_REVIEW.md)
 │   ├── windows/  linux/
 ├── vulndata/                     Offline vulnerability data snapshots
 ├── reports/                      Generated reports (one folder per assessment)

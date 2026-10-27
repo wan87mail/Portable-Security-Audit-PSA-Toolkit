@@ -41,6 +41,10 @@ def test_example_baselines_are_valid():
     ({"type": "sysctl", "name": "kernel.x; rm -rf /"}, "invalid value"),
     ({"type": "sysctl", "name": "kernel.randomize_va_space", "extra": 1}, "unknown parameter"),
     ({"type": "file_kv", "path": "/etc/../etc/shadow", "key": "x"}, "path traversal"),
+    ({"type": "file_kv", "path": "//etc/shadow", "key": "root"}, "canonical form"),
+    ({"type": "file_kv", "path": "/etc/./shadow", "key": "root"}, "canonical form"),
+    ({"type": "file_contains", "path": "/etc//ssh/ssh_host_rsa_key", "text": "BEGIN"}, "canonical form"),
+    ({"type": "file_kv", "path": "/etc/shadow/", "key": "root"}, "canonical form"),
     ({"type": "file_kv", "path": "/etc/shadow", "key": "root"}, "not permitted"),
     ({"type": "file_contains", "path": "/etc/ssh/ssh_host_ed25519_key", "text": "BEGIN"}, "not permitted"),
     ({"type": "file_kv", "path": "/home/alice/.bashrc", "key": "x"}, "not permitted"),
@@ -165,6 +169,19 @@ def test_linux_baseline_end_to_end(tmp_path):
     assert all(f.references and f.references[0].kind.value == "BASELINE" for f in deviations)
 
 
+def test_symlink_to_secret_file_is_not_read(tmp_path):
+    rules = [rule("LINK", {"type": "file_contains", "path": "/tmp/innocent.conf", "text": "root:"},
+                  {"op": "eq", "value": False})]
+    ctx, _ = linux_setup(tmp_path, rules=rules)
+    ctx.fs.add("/etc/shadow", "root:$6$secrethash:19000:0:99999:7:::\n", mode=0o640)
+    ctx.fs.links["/tmp/innocent.conf"] = "/etc/shadow"
+    findings = BaselineCheck().run(ctx)
+    blob = json.dumps([[e.data for e in f.evidence] for f in findings], default=str)
+    assert "secrethash" not in blob
+    assert any("resolves to /etc/shadow" in l.description for l in ctx.partial)
+    assert ctx.data_sources[0]["inconclusive"] == 1 and ctx.data_sources[0]["passed"] == 0
+
+
 def test_baseline_evidence_contains_only_compared_value(tmp_path):
     ctx, _ = linux_setup(tmp_path)
     ctx.fs.add("/etc/login.defs", "UMASK 022\nSECRET_TOKEN=abc123\n")
@@ -231,3 +248,36 @@ def test_cli_import_and_list(portable_root, tmp_path, capsys):
     capsys.readouterr()
     assert run("baselines") == cli.EXIT_OK
     assert "Example Ubuntu Server Baseline v1.0" in capsys.readouterr().out
+
+
+def test_import_installs_exactly_the_validated_bytes(portable_root, tmp_path, monkeypatch):
+    from psatoolkit.core import baseline as baseline_mod
+    from psatoolkit.core.session import Toolkit, import_baseline_file
+    src = tmp_path / "b.json"
+    good = json.dumps(base([rule()])).encode()
+    src.write_bytes(good)
+    real_parse = baseline_mod.parse_baseline_bytes
+
+    def swap_after_validation(raw, path):        # the file changes right after it was validated
+        parsed = real_parse(raw, path)
+        src.write_text('{"format": "evil"}')
+        return parsed
+    monkeypatch.setattr(baseline_mod, "parse_baseline_bytes", swap_after_validation)
+    target = import_baseline_file(Toolkit(root=portable_root), src)
+    assert src.read_bytes() != good                 # the swap happened...
+    assert target.read_bytes() == good              # ...but the validated bytes were installed
+
+
+@pytest.mark.skipif(not hasattr(__import__("os"), "mkfifo"), reason="needs FIFOs")
+def test_import_refuses_special_and_oversized_files(tmp_path, monkeypatch):
+    import os
+    from psatoolkit.core import baseline as baseline_mod
+    fifo = tmp_path / "pipe.json"
+    os.mkfifo(fifo)
+    with pytest.raises(BaselineError, match="not a regular file"):
+        load_baseline(fifo)
+    big = tmp_path / "big.json"
+    big.write_bytes(b" " * 200)
+    monkeypatch.setattr(baseline_mod, "MAX_FILE_BYTES", 100)
+    with pytest.raises(BaselineError, match="larger than"):
+        load_baseline(big)

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import posixpath
 import re
 from dataclasses import dataclass, field
 from fnmatch import fnmatch
@@ -159,6 +160,10 @@ def _validate_params(check_type: str, raw: dict[str, Any], where: str, baseline_
     path = params.get("path")
     if path is not None and ".." in path.split("/"):
         raise BaselineError(f"{where}: path traversal ('..') is not permitted")
+    # '//etc/shadow', '/etc/./shadow' or a trailing '/' would slip past the secret-file patterns.
+    if path is not None and (path.startswith("//") or posixpath.normpath(path) != path):
+        raise BaselineError(f"{where}: path '{path}' must be written in canonical form "
+                            f"(e.g. '{posixpath.normpath('/' + path.lstrip('/'))}')")
     if path is not None and check_type in READS_CONTENT and is_secret_path(path):
         raise BaselineError(f"{where}: reading the contents of '{path}' is not permitted (may contain secrets); "
                             "use file_mode to check its permissions instead")
@@ -242,13 +247,19 @@ def parse_baseline(data: dict[str, Any], path: Path | None = None) -> Baseline:
                     rules=rules, path=path, description=_text(data, "description", "baseline", 2000))
 
 
-def load_baseline(path: Path) -> Baseline:
+def read_baseline_bytes(path: Path) -> bytes:
+    from psatoolkit.core.paths import read_limited
     try:
-        raw = path.read_bytes()
+        return read_limited(path, MAX_FILE_BYTES)
     except OSError as exc:
-        raise BaselineError(f"{path}: cannot read: {exc}") from None
-    if len(raw) > MAX_FILE_BYTES:
-        raise BaselineError(f"{path}: larger than {MAX_FILE_BYTES} bytes")
+        raise BaselineError(f"{path}: cannot read: {exc.strerror or exc}") from None
+
+
+def load_baseline(path: Path) -> Baseline:
+    return parse_baseline_bytes(read_baseline_bytes(path), path)
+
+
+def parse_baseline_bytes(raw: bytes, path: Path) -> Baseline:
     try:
         data = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, ValueError) as exc:

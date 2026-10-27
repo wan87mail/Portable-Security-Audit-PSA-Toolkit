@@ -59,6 +59,11 @@ def test_live_local_assessment_writes_only_to_output(portable_root, authorizatio
     for argv in started:
         exe = Path(argv[0][0]).name
         ReadOnlyPolicy.default().check(exe, argv[0][1:])  # anything started passed the policy
+    # The live run must also *work*: a check that ran into a timeout means the queries are
+    # broken on this OS (an over-trimmed child environment once made every query time out).
+    stalled = [f"{c.check_id}: {c.message}" for c in outcome.result.checks
+               if c.status.value == "timeout" or "timed out" in (c.message or "")]
+    assert not stalled, stalled
 
 
 def test_every_registered_check_declares_metadata():

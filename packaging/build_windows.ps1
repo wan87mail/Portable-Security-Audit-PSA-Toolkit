@@ -40,8 +40,8 @@ Set-Location $Root
 if ($PythonExe) { & $PythonExe -m venv .build-venv } else { & py "-$PythonVersion" -m venv .build-venv }
 if ($LASTEXITCODE -ne 0) { throw "could not create the build virtual environment" }
 $Python = Join-Path $Root ".build-venv\Scripts\python.exe"
-& $Python -m pip install --upgrade pip | Out-Null
-& $Python -m pip install -r requirements-build.txt
+# Hash-locked: every package (and its dependencies) must match requirements-build.lock.
+& $Python -m pip install --require-hashes --only-binary=:all: -r requirements-build.lock
 if ($LASTEXITCODE -ne 0) { throw "dependency installation failed" }
 
 if (-not $SkipTests) {

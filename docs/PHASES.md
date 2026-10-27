@@ -10,7 +10,7 @@
 | 6 | HTML, PDF, CSV reports; executive summary; remediation roadmap | **Done** |
 | 7 | Module F baselines and custom baseline import; expanded demo and test checklists | **Done** |
 | 8 | PyInstaller Windows `.exe`, Linux frozen build, USB preparation scripts | **Done** |
-| 9 | Security, dependency and usability review | Planned |
+| 9 | Security, dependency and usability review | **Done** ([SECURITY_REVIEW.md](SECURITY_REVIEW.md)) |
 | 10 | Final documentation and release checklist | Planned |
 
 ## Phase 1–2 deliverables
@@ -126,7 +126,7 @@ correctly *inconclusive* (no SSH server; systemd not running in the container).
 | `packaging/build_windows.ps1` | Windows build: isolated venv, tests, version resource, optional Authenticode signing, smoke test |
 | `packaging/build_linux.sh` | Linux build with the same steps |
 | `packaging/make_version_info.py` | Windows file-version resource from `psatoolkit.__version__` |
-| `requirements-build.txt` | Pinned build dependencies (PyInstaller 6.19.0) |
+| `requirements-build.txt` | Build dependencies (PyInstaller 6.19.0); locked with hashes in `requirements-build.lock` (Phase 9) |
 | `scripts/prepare_usb.py` | Assembles and updates the drive; validates inputs first; writes the integrity manifest |
 | `.github/workflows/build.yml` | Tests on Ubuntu 22.04/24.04 and Windows Server 2022/2025, builds both editions, assembles a drive |
 | `docs/BUILD.md` | Build, sign, prepare, update, verify and troubleshoot |
@@ -142,13 +142,29 @@ drive and passed `verify`. The `selftest` command revealed (and this phase
 fixed) a configuration default that would have produced JSON-only reports on
 a drive without `config/default.toml`.
 
+## Phase 9 deliverables
+
+| File | Purpose |
+|---|---|
+| `docs/SECURITY_REVIEW.md` | Threat model, 14 findings (3 high) with fixes, residual risks, dependency and usability review |
+| `src/psatoolkit/core/safe_exec.py` | Least-privilege allow-list (15 programs), strict per-program rules, explicit `.exe`-only resolution from system directories, Windows child environment without redirection hooks, output capped while reading |
+| `src/psatoolkit/core/hostfs.py` | Regular files only (no devices/FIFOs), symlinks resolved and confined to the root, `resolve()` |
+| `src/psatoolkit/core/baseline.py`, `modules/baseline_audit.py` | Canonical paths required; symlinks to protected files refused at run time |
+| `src/psatoolkit/core/paths.py` | `read_limited()` for files from outside the toolkit |
+| `requirements-build.lock` | Hash-locked build dependencies, installed with `--require-hashes` |
+| `.github/workflows/build.yml` | Actions pinned to commit SHAs |
+| `tests/test_hostfs.py` and additions to five test files | Regression tests for every finding |
+
+Verified here: full suite on Python 3.10, 3.12 and 3.13, a live read-only audit
+of an Ubuntu 24.04 host (all 23 checks ran with no policy denials, report
+folder `0700`), and a Linux build installed from the hash lock.
+
 ## Known limitations after Phase 8
 
 - The Windows `.exe` can only be built on Windows. It is built and
   self-tested in CI; there is no local Windows build log in this repository.
 - CI builds are unsigned; sign before production use.
-- GitHub Actions are pinned to major versions (e.g. `actions/checkout@v4`);
-  pin them to commit SHAs if your supply-chain policy requires it.
+- ~~GitHub Actions are pinned to major versions~~ (pinned to commit SHAs in Phase 9).
 - The Linux GUI bundle could not be verified in this development container
   (its Python embeds Tcl/Tk 9); CI verifies it with `selftest --require-gui`.
 
@@ -212,6 +228,6 @@ a drive without `config/default.toml`.
   Windows CI runner or manual test is available.
 - The read-only command policy is defence in depth for the toolkit's own
   checks, not a sandbox: it cannot judge arbitrary scripts, so new checks
-  still need code review (Phase 9).
+  still need code review (checklist in SECURITY_REVIEW.md section 6).
 - The audit log is tamper-*evident*, not tamper-proof. Copy logs to
   protected storage after each engagement.

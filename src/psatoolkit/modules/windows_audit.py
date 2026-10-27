@@ -734,7 +734,7 @@ class BitLockerCheck(WindowsCheck):
     title = "BitLocker drive encryption"
     description = "Checks that the operating system volume (and fixed data volumes) are encrypted."
     requires_admin = True
-    admin_reason = "BitLocker volume status (Get-BitLockerVolume / manage-bde) is only readable by administrators."
+    admin_reason = "BitLocker volume status (Get-BitLockerVolume) is only readable by administrators."
     PS = ("if(-not (Get-Command Get-BitLockerVolume -ErrorAction SilentlyContinue)) "
           "{ [pscustomobject]@{Available=$false} } else { Get-BitLockerVolume | Select-Object MountPoint,"
           "@{n='VolumeType';e={[string]$_.VolumeType}},@{n='VolumeStatus';e={[string]$_.VolumeStatus}},"

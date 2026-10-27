@@ -16,7 +16,7 @@ import stat as st
 from pathlib import Path
 from typing import Any
 
-from psatoolkit.core.baseline import Baseline, Rule, evaluate, expected_text, load_directory
+from psatoolkit.core.baseline import Baseline, Rule, evaluate, expected_text, is_secret_path, load_directory
 from psatoolkit.core.engine import AssessmentContext, Check, Module, SkipCheck
 from psatoolkit.core.models import Confidence, Finding, FindingStatus, Reference, ReferenceKind, Severity
 from psatoolkit.modules._common import mode_str, parse_kv_lines, read_registry, run_ps
@@ -125,6 +125,11 @@ class Collector:
         return text.strip()
 
     def _read(self, path: str) -> str | None:
+        # Import-time validation checks the path as written; a symlink could still point at
+        # a protected file (e.g. /tmp/x -> /etc/shadow), so check where it really leads.
+        resolved = self.ctx.fs.resolve(path)
+        if resolved is not None and resolved != path and is_secret_path(resolved):
+            raise Inconclusive(f"{path} resolves to {resolved}, whose contents may not be read (may contain secrets)")
         text, err = self.ctx.fs.try_read(path)
         if text is None and err != "missing":
             raise Inconclusive(f"{path} could not be read ({err})")

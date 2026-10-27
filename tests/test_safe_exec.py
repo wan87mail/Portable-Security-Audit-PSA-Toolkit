@@ -16,52 +16,44 @@ def policy():
     return ReadOnlyPolicy.default()
 
 
+# Every command line the shipped checks run (keep in sync with the modules).
 @pytest.mark.parametrize("argv", [
-    ["reg", "query", r"HKLM\SYSTEM\CurrentControlSet\Control\Lsa", "/v", "RunAsPPL"],
-    ["netsh", "advfirewall", "show", "allprofiles"],
-    ["sc", "qc", "LanmanServer"],
     ["net", "accounts"],
-    ["net", "localgroup", "Administrators"],
-    ["auditpol", "/get", "/category:*"],
-    ["manage-bde", "-status"],
+    ["auditpol", "/get", "/category:*", "/r"],
     ["powershell", "-NoProfile", "-NonInteractive", "-Command",
      "Get-MpComputerStatus | Select-Object AMServiceEnabled | ConvertTo-Json"],
     ["systemctl", "is-enabled", "ssh"],
-    ["systemctl", "--no-pager", "list-units", "--type=service"],
-    ["ss", "-tulpn"],
-    ["ip", "-br", "addr"],
+    ["systemctl", "is-active", "ufw"],
+    ["systemctl", "list-units", "--type=service,socket", "--state=running,listening", "--no-pager"],
+    ["lsblk", "-J", "-o", "NAME,TYPE,FSTYPE,MOUNTPOINT"],
+    ["dpkg-query", "-W", "-f", "${binary:Package}\t${Version}\n"],
+    ["rpm", "-qa", "--qf", "%{NAME}\t%{EPOCH}:%{VERSION}-%{RELEASE}\t%{SOURCERPM}\n"],
+    ["ip", "-j", "addr"],
+    ["ip", "-br", "addr", "show", "dev", "eth0"],
     ["ufw", "status", "verbose"],
-    ["iptables", "-L", "-n", "-v"],
-    ["iptables", "-t", "nat", "-S"],
     ["nft", "list", "ruleset"],
-    ["sshd", "-T"],
-    ["find", "/etc", "-xdev", "-perm", "-0002", "-type", "f"],
+    ["iptables", "-S"],
+    ["iptables", "-t", "nat", "-L", "-n", "-v"],
     ["apt", "list", "--upgradable"],
-    ["openssl", "x509", "-noout", "-dates"],
-    ["nmap", "-sT", "-Pn", "-p", "22,443", "--script", "safe", "10.0.0.5"],
+    ["dnf", "-q", "--cacheonly", "check-update"],
+    ["dnf", "-q", "--cacheonly", "updateinfo", "list", "--security"],
+    ["sshd", "-T"],
+    ["openssl", "x509", "-in", "/etc/ssl/certs/a.pem", "-noout", "-subject", "-enddate"],
+    ["openssl", "version"],
 ])
 def test_read_only_commands_allowed(policy, argv):
     policy.check(argv[0], argv[1:])
 
 
 @pytest.mark.parametrize("argv", [
-    ["reg", "add", r"HKLM\SOFTWARE\x", "/v", "y", "/d", "1"],
-    ["reg", "delete", r"HKLM\SOFTWARE\x"],
-    ["reg", "import", "evil.reg"],
-    ["netsh", "advfirewall", "set", "allprofiles", "state", "off"],
-    ["netsh", "advfirewall", "firewall", "add", "rule", "name=x"],
-    ["netsh", "interface", "show", "interface", "&&", "netsh", "reset"],
-    ["sc", "config", "WinDefend", "start=", "disabled"],
-    ["sc", "stop", "WinDefend"],
+    # state-changing forms of allowed programs
     ["net", "user", "bob", "Passw0rd!"],
     ["net", "user", "bob", "/add"],
+    ["net", "share", "x=C:\\"],                        # positional-only share creation
     ["net", "accounts", "/minpwlen:0"],
     ["net", "localgroup", "Administrators", "bob", "/add"],
-    ["net", "stop", "wuauserv"],
     ["auditpol", "/set", "/category:*"],
-    ["manage-bde", "-off", "C:"],
-    ["secedit", "/configure", "/db", "x.sdb"],
-    ["ipconfig", "/release"],
+    ["auditpol", "/get", "/category:*", "/set"],
     ["powershell", "-NoProfile", "-NonInteractive", "-Command", "Set-MpPreference -DisableRealtimeMonitoring $true"],
     ["powershell", "-NoProfile", "-NonInteractive", "-Command", "Stop-Service WinDefend"],
     ["powershell", "-NoProfile", "-NonInteractive", "-Command", "Get-Process | Stop-Process"],
@@ -69,30 +61,57 @@ def test_read_only_commands_allowed(policy, argv):
     ["powershell", "-NoProfile", "-NonInteractive", "-Command", "Invoke-WebRequest http://x"],
     ["powershell", "-NoProfile", "-NonInteractive", "-Command", "Get-Date | Out-File C:\\x.txt"],
     ["powershell", "-NoProfile", "-NonInteractive", "-Command", "$k=Get-Item HKLM:\\x; $k.SetValue('a',1)"],
+    ["powershell", "-NoProfile", "-NonInteractive", "-Command", "[ScriptBlock]::Create('x')"],
     ["powershell", "-EncodedCommand", "ZQBjAGgAbwA="],
     ["powershell", "-Command", "Get-Date"],
     ["systemctl", "restart", "ssh"],
     ["systemctl", "disable", "apparmor"],
     ["systemctl", "--now", "mask", "ufw"],
+    ["systemctl", "kill", "sshd"],
     ["ufw", "disable"],
     ["nft", "flush", "ruleset"],
+    ["nft", "-f", "list"],                              # would apply a file named 'list'
     ["iptables", "-F"],
     ["iptables", "-P", "INPUT", "ACCEPT"],
     ["iptables", "-L", "-A", "INPUT"],
     ["ip", "link", "set", "eth0", "down"],
     ["ip", "addr", "add", "10.0.0.1/24", "dev", "eth0"],
-    ["find", "/tmp", "-name", "x", "-delete"],
-    ["find", "/", "-exec", "rm", "{}", ";"],
+    ["ip", "netns", "exec", "x", "sh"],                 # runs a command
+    ["ip", "-batch", "cmds.txt"],
+    ["ip", "-force", "-b", "x"],
+    ["ip", "xfrm", "state", "deleteall"],
+    ["ip", "route", "flush", "all"],
     ["apt", "install", "nmap"],
     ["apt", "remove", "ufw"],
+    ["apt", "list", "-o", "APT::Update::Pre-Invoke::=touch /tmp/x"],
     ["dnf", "upgrade"],
+    ["dnf", "check-update"],                            # refreshes metadata over the network
+    ["dnf", "--cacheonly", "--setopt=x=1", "list"],
     ["rpm", "-e", "openssh"],
+    ["rpm", "-qa", "--pipe", "sh"],
+    ["rpm", "-q", "--eval", "%(id)"],
+    ["rpm", "-q", "--qf", "%(id)", "bash"],
+    ["dpkg-query", "--load-avail", "x"],
     ["sshd", "-D"],
-    ["cryptsetup", "luksFormat", "/dev/sda"],
-    ["nmap", "--script", "smb-vuln-ms17-010,exploit", "10.0.0.5"],
-    ["nmap", "--script", "brute", "10.0.0.5"],
-    ["nmap", "-iL", "targets.txt"],
     ["openssl", "req", "-new"],
+    ["openssl", "x509", "-in", "a.pem", "-out", "/etc/ssl/certs/b.pem"],
+    ["openssl", "x509", "-in", "a.pem"],                # must be -noout
+    ["openssl", "s_client", "-connect", "example.com:443"],
+    # programs that are not on the least-privilege list at all
+    ["reg", "add", r"HKLM\SOFTWARE\x", "/v", "y", "/d", "1"],
+    ["reg", "query", "HKLM"],
+    ["netsh", "wlan", "show", "profile", "name=x", "key=clear"],
+    ["sc", "config", "WinDefend", "start=", "disabled"],
+    ["manage-bde", "-off", "C:"],
+    ["secedit", "/configure", "/db", "x.sdb"],
+    ["ipconfig", "/release"],
+    ["pwsh", "-NoProfile", "-NonInteractive", "-Command", "Get-Date"],
+    ["hostname", "attacker"],                           # sets the hostname on Linux
+    ["ss", "-K", "dst", "10.0.0.1"],                    # kills sockets
+    ["find", "/tmp", "-name", "x", "-delete"],
+    ["cryptsetup", "luksDump", "--dump-master-key", "/dev/sda2"],
+    ["nmap", "-oN", "/etc/passwd", "10.0.0.5"],
+    ["uname", "-a"],
     ["rm", "-rf", "/"],
     ["bash", "-c", "id"],
     ["cmd", "/c", "whoami"],
@@ -104,9 +123,16 @@ def test_mutating_or_unknown_commands_denied(policy, argv):
 
 
 def test_exe_suffix_is_normalised(policy):
-    policy.check("REG.EXE", ["query", "HKLM"])
+    policy.check("NET.EXE", ["accounts"])
     with pytest.raises(PolicyViolation):
-        policy.check("reg.exe", ["add", "HKLM"])
+        policy.check("net.exe", ["user", "x", "/add"])
+
+
+def test_policy_only_lists_programs_the_checks_use(policy):
+    """Least privilege: a new program needs a rule, tests and a reason (see ReadOnlyPolicy)."""
+    assert sorted(policy.rules) == sorted([
+        "powershell", "net", "auditpol", "systemctl", "lsblk", "dpkg-query", "rpm", "ip", "ufw", "nft",
+        "iptables", "apt", "dnf", "sshd", "openssl"])
 
 
 def test_runner_rejects_shell_strings():
@@ -151,7 +177,7 @@ def test_demo_mode_never_executes(monkeypatch):
 
 @posix_only
 def test_successful_command_and_secure_environment():
-    result = CommandRunner().run(["uname", "-s"])
+    result = CommandRunner(policy=ReadOnlyPolicy(rules={"uname": lambda a: None})).run(["uname", "-s"])
     assert result.ok, result
     assert result.stdout.strip()
 
@@ -183,3 +209,78 @@ def test_output_is_truncated_and_redacted():
     result = runner.run(["printf", "password=hunter2 " + "x" * 20000])
     assert result.truncated
     assert "hunter2" not in result.stdout and "[REDACTED]" in result.stdout
+
+
+def test_windows_child_env_drops_redirection_hooks_and_pins_search_paths():
+    from pathlib import Path
+
+    from psatoolkit.core.safe_exec import windows_child_env
+    host = {"PATH": r"C:\Users\x\evil;C:\Windows\System32",
+            "PSMODULEPATH": r"C:\Users\x\Documents\WindowsPowerShell\Modules;C:\Modules\az;"
+                            r"C:\Program Files\WindowsPowerShell\Modules",
+            "USERPROFILE": r"C:\Users\x", "SYSTEMROOT": r"C:\Windows", "TEMP": r"C:\Temp",
+            "PYTHONPATH": r"C:\x", "COR_PROFILER": "{bad}", "COR_ENABLE_PROFILING": "1",
+            "COMPLUS_ProfAPI_ProfilerCompatibilitySetting": "x", "DOTNET_STARTUP_HOOKS": r"C:\x.dll",
+            "PSExecutionPolicyPreference": "Bypass", "PROGRAMFILES": r"C:\Program Files",
+            "APPDATA": r"C:\Users\x\AppData\Roaming"}
+    env = windows_child_env(host, Path(r"C:\Windows"))
+    assert "evil" not in env["PATH"] and env["PATH"].split(";")[0] == r"C:\Windows\System32"
+    modules = env["PSModulePath"].split(";")
+    assert modules[:2] == [r"C:\Program Files\WindowsPowerShell\Modules",
+                           r"C:\Windows\System32\WindowsPowerShell\v1.0\Modules"]
+    assert r"C:\Modules\az" in modules                         # machine-wide entries are kept
+    assert not any(m.startswith(r"C:\Users\x") for m in modules)  # user-writable ones are not
+    assert len(modules) == len({m.lower() for m in modules})
+    assert env["TEMP"] == r"C:\Temp" and env["APPDATA"].endswith("Roaming")   # session variables inherited
+    for dropped in ("PYTHONPATH", "COR_PROFILER", "COR_ENABLE_PROFILING", "DOTNET_STARTUP_HOOKS",
+                    "COMPLUS_ProfAPI_ProfilerCompatibilitySetting", "PSExecutionPolicyPreference",
+                    "PSMODULEPATH"):
+        assert dropped not in env
+
+
+@pytest.mark.skipif(not sys.platform.startswith("win"), reason="real Windows PowerShell")
+def test_windows_powershell_query_is_fast_with_the_child_environment():
+    """Regression guard: an over-trimmed environment once made every query run into its timeout."""
+    import os
+
+    from psatoolkit.modules._common import ps_command
+    argv = ps_command("Get-CimInstance -ClassName Win32_OperatingSystem | Select-Object Caption, BuildNumber")
+    timings = {}
+    for label, env in (("child", None), ("full", dict(os.environ))):
+        runner = CommandRunner(default_timeout=60)
+        if env is not None:
+            runner._env = lambda env=env: env                 # comparison run with the unmodified host env
+        result = runner.run(argv)
+        timings[label] = (round(result.duration, 1), result.ok, result.timed_out, result.stderr[:300])
+    assert timings["child"][1] and timings["child"][0] < 30, timings
+
+
+@pytest.mark.parametrize("name", ["..", "net accounts", "a;b", "$(id)", "-x", "x" * 70])
+def test_resolver_rejects_odd_executable_names(name):
+    with pytest.raises(PolicyViolation):
+        CommandRunner().resolve(name)
+
+
+def test_resolver_ignores_current_directory(tmp_path, monkeypatch):
+    name = "psa-cwd-planted"
+    planted = tmp_path / (name + (".exe" if sys.platform.startswith("win") else ""))
+    planted.write_bytes(b"")
+    planted.chmod(0o755)
+    monkeypatch.chdir(tmp_path)
+    assert CommandRunner().resolve(name) is None
+
+
+@pytest.mark.skipif(not sys.platform.startswith("win"), reason="Windows resolution")
+def test_windows_resolver_returns_system32_exe_only():
+    path = CommandRunner().resolve("net")
+    assert path and path.lower().endswith(r"system32\net.exe")
+
+
+@posix_only
+def test_output_cap_applies_while_reading():
+    """Output beyond the cap is discarded as it streams; memory stays bounded."""
+    policy = ReadOnlyPolicy(rules={"head": lambda a: None})
+    runner = CommandRunner(policy=policy, max_output_bytes=1000)
+    result = runner.run(["head", "-c", "50000000", "/dev/zero"], timeout=30)
+    assert result.ok and result.truncated
+    assert len(result.stdout) <= 1000

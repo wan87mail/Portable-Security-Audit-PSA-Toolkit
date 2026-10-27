@@ -15,13 +15,13 @@ from __future__ import annotations
 
 import os
 import re
-import shutil
 import signal
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Callable, Sequence
 
 from psatoolkit.core.redaction import redact_text
@@ -31,7 +31,7 @@ IS_WINDOWS = sys.platform.startswith("win")
 POSIX_SECURE_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 # Optional third-party tools that may be shipped on the USB drive.
-BUNDLED_TOOLS = frozenset({"nmap", "openssl"})
+BUNDLED_TOOLS = frozenset({"openssl"})
 
 
 class PolicyViolation(Exception):
@@ -60,43 +60,18 @@ def _require_first(allowed: set[str]) -> Callable[[Sequence[str]], str | None]:
     return rule
 
 
-def _forbid_tokens(forbidden: set[str], also: Callable[[Sequence[str]], str | None] | None = None):
-    def rule(args: Sequence[str]) -> str | None:
-        lowered = {a.lower() for a in args}
-        bad = lowered & forbidden
-        if bad:
-            return f"argument(s) {sorted(bad)} may modify the system"
-        return also(args) if also else None
-    return rule
-
-
-def _windows_first_arg(allowed: set[str]) -> Callable[[Sequence[str]], str | None]:
-    """Windows tools use '/' or '-' switches as sub-commands (auditpol /get)."""
-    def rule(args: Sequence[str]) -> str | None:
-        first = args[0].lower() if args else ""
-        if first not in allowed:
-            return f"'{first or '<none>'}' is not an allowed read-only switch {sorted(allowed)}"
-        return None
-    return rule
-
-
-def _netsh(args: Sequence[str]) -> str | None:
-    lowered = [a.lower() for a in args]
-    if "show" not in lowered:
-        return "netsh is only permitted with a 'show' sub-command"
-    bad = set(lowered) & {"set", "add", "delete", "reset", "import", "install", "uninstall", "flush", "dump", "exec"}
-    return f"netsh argument(s) {sorted(bad)} may modify the system" if bad else None
-
-
 def _net(args: Sequence[str]) -> str | None:
-    if _first_positional(args) not in {"user", "localgroup", "accounts", "share", "config"}:
-        return "net is only permitted for user/localgroup/accounts/share/config queries"
-    if len(_positional(args)) > 2:
-        return "extra positional arguments to 'net' could set a password or membership"
-    for a in args:
-        low = a.lower()
-        if low.startswith("/") and low not in ("/domain",):
-            return f"switch '{a}' may modify accounts or policy"
+    # Only the account-policy query is needed; 'net user/share/localgroup' can create
+    # accounts, shares or memberships with positional arguments alone.
+    return None if [a.lower() for a in args] == ["accounts"] else "net is limited to 'net accounts'"
+
+
+def _auditpol(args: Sequence[str]) -> str | None:
+    if not args or args[0].lower() != "/get":
+        return "auditpol is limited to /get"
+    for a in args[1:]:
+        if not re.fullmatch(r"(?i)/(category|subcategory):[^/]{1,200}|/r", a):
+            return f"auditpol argument '{a}' is not permitted"
     return None
 
 
@@ -122,14 +97,39 @@ def _powershell(args: Sequence[str]) -> str | None:
         # Only Verb-Noun cmdlets are a concern; plain words like "Start" in strings are not.
         if "-" in token and not _PS_ALLOWED_VERB.match(token):
             return f"PowerShell cmdlet '{token}' is not permitted in read-only mode"
-    if re.search(r"(?i)(\biex\b|\[\s*system\.diagnostics\.process\s*\]|\.(set|delete|create|put|invoke|start|kill|terminate)\w*\s*\()", script):
+    if re.search(r"(?i)(\biex\b|\[\s*system\.diagnostics\.process\s*\]|\[\s*scriptblock\s*\]|"
+                 r"\.(set|delete|create|put|invoke|start|kill|terminate)\w*\s*\()", script):
         return "PowerShell script contains a dynamic-execution or mutating method call"
     return None
 
 
+_IP_OBJECTS = {"addr", "address", "a", "link", "l", "route", "r", "ro", "neigh", "n", "rule", "ru"}
+_IP_VERBS = {"show", "list", "ls", "lst", "get"}
+_IP_OPTIONS = {"-j", "-json", "-br", "-brief", "-4", "-6", "-o", "-oneline", "-d", "-details",
+               "-s", "-stats", "-p", "-pretty"}
+
+
 def _ip(args: Sequence[str]) -> str | None:
-    bad = {a.lower() for a in args} & {"add", "del", "delete", "set", "flush", "change", "replace", "append", "prepend", "save", "restore"}
-    return f"ip argument(s) {sorted(bad)} may modify networking" if bad else None
+    """Allow-list: ``ip [options] OBJECT [show|list|get [selectors]]``.
+
+    A deny-list is not enough here: ``ip netns exec``, ``ip -batch`` and dozens of
+    verbs (``deleteall``, ``flush``...) run commands or change networking.
+    """
+    positional = []
+    for a in args:
+        if a.startswith("-"):
+            if a.lower() not in _IP_OPTIONS:
+                return f"ip option '{a}' is not permitted"
+        else:
+            positional.append(a.lower())
+    if not positional or positional[0] not in _IP_OBJECTS:
+        return f"ip object must be one of {sorted(_IP_OBJECTS)}"
+    if len(positional) > 1 and positional[1] not in _IP_VERBS:
+        return f"ip is limited to {sorted(_IP_VERBS)}"
+    for a in positional[2:]:
+        if not re.fullmatch(r"[a-z0-9_.:/@%-]{1,64}", a) or a in {"exec", "add", "del", "delete", "set", "flush"}:
+            return f"ip selector '{a}' is not permitted"
+    return None
 
 
 def _iptables(args: Sequence[str]) -> str | None:
@@ -145,29 +145,74 @@ def _iptables(args: Sequence[str]) -> str | None:
     return None
 
 
-def _find(args: Sequence[str]) -> str | None:
-    bad = {a.lower() for a in args} & {"-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint",
-                                       "-fprint0", "-fprintf", "-fls"}
-    return f"find action(s) {sorted(bad)} are not permitted" if bad else None
+def _nft(args: Sequence[str]) -> str | None:
+    # 'nft -f FILE list' would apply FILE; interactive mode reads commands from stdin.
+    bad = {a.lower() for a in args} & {"-f", "--file", "-i", "--interactive"}
+    if bad:
+        return f"nft option(s) {sorted(bad)} are not permitted"
+    return _require_first({"list"})(args)
 
 
-def _nmap(args: Sequence[str]) -> str | None:
-    joined = " ".join(args).lower()
-    for word in ("exploit", "brute", "dos", "intrusive", "malware", "fuzzer", "--script-args-file"):
-        if word in joined:
-            return f"nmap '{word}' scripts/options are not permitted (non-destructive mode only)"
-    if "--resume" in joined or "-il" in {a.lower() for a in args}:
-        return "nmap targets must be passed explicitly, not from files"
+def _apt(args: Sequence[str]) -> str | None:
+    for a in args:
+        low = a.lower()
+        if low in ("-o", "-c") or low.startswith(("--option", "--config-file", "-o=", "-c=")):
+            return "apt configuration overrides (-o/-c) are not permitted"
+    return _require_first({"list"})(args)
+
+
+_RPM_FORBIDDEN = {"--pipe", "--eval", "-e", "--erase", "--define", "-d", "--macros", "--rcfile", "--load",
+                  "-i", "--install", "-u", "--upgrade", "-f", "--freshen", "--import", "--initdb",
+                  "--rebuilddb", "--setperms", "--setugids", "--setcaps", "--restore", "--dbpath", "--root"}
+
+
+def _rpm(args: Sequence[str]) -> str | None:
+    if not args or not args[0].startswith("-q"):
+        return "rpm is limited to queries (-q...)"
+    for a in args:
+        low = a.lower().split("=", 1)[0]
+        if low in _RPM_FORBIDDEN:
+            return f"rpm option '{a}' is not permitted"
+        if "%(" in a or "%{lua" in a.lower():
+            return "rpm macros that execute code are not permitted"
     return None
 
 
+def _dnf(args: Sequence[str]) -> str | None:
+    lowered = [a.lower() for a in args]
+    if "--cacheonly" not in lowered and "-C" not in args:
+        return "dnf must run with --cacheonly (no repository refresh or network access)"
+    for low in lowered:
+        if low.startswith(("--setopt", "--config", "--installroot")) or low in ("-y", "--assumeyes"):
+            return f"dnf option '{low}' is not permitted"
+    return _require_first({"check-update", "updateinfo", "list", "info"})(args)
+
+
+def _dpkg_query(args: Sequence[str]) -> str | None:
+    return None if args and args[0] in ("-W", "--show") else "dpkg-query is limited to -W/--show"
+
+
 def _openssl(args: Sequence[str]) -> str | None:
-    return _require_first({"x509", "s_client", "version", "ciphers", "verify", "crl"})(args)
+    lowered = [a.lower() for a in args]
+    if lowered == ["version"]:
+        return None
+    if not lowered or lowered[0] != "x509":
+        return "openssl is limited to 'x509 -noout' and 'version'"
+    if "-noout" not in lowered:
+        return "openssl x509 must use -noout"
+    bad = set(lowered) & {"-out", "-keyout", "-signkey", "-req", "-new", "-ca", "-cakey", "-x509toreq", "-engine"}
+    return f"openssl option(s) {sorted(bad)} are not permitted" if bad else None
 
 
 @dataclass
 class ReadOnlyPolicy:
-    """Maps allowed executables to a rule returning a denial reason or None."""
+    """Maps allowed executables to a rule returning a denial reason or None.
+
+    The default policy is least-privilege: it lists only the programs the
+    shipped checks actually run, each restricted to the read-only forms the
+    checks use. Adding a check that needs another program means adding it
+    here, with a rule and tests (tests/test_safe_exec.py).
+    """
 
     rules: dict[str, Callable[[Sequence[str]], str | None]] = field(default_factory=dict)
 
@@ -176,42 +221,23 @@ class ReadOnlyPolicy:
         ok: Callable[[Sequence[str]], str | None] = lambda args: None  # noqa: E731
         return cls(rules={
             # --- Windows -------------------------------------------------
-            "netsh": _netsh,
-            "reg": _require_first({"query"}),
-            "sc": _require_first({"query", "queryex", "qc", "qdescription", "qfailure",
-                                  "qsidtype", "qprivs", "qtriggerinfo", "sdshow", "enumdepend"}),
-            "net": _net,
             "powershell": _powershell,
-            "pwsh": _powershell,
-            "auditpol": _windows_first_arg({"/get"}),
-            "manage-bde": _windows_first_arg({"-status"}),
-            "secedit": _windows_first_arg({"/export"}),
-            "ipconfig": _forbid_tokens({"/release", "/release6", "/renew", "/renew6", "/flushdns",
-                                        "/registerdns", "/setclassid", "/setclassid6"}),
-            "systeminfo": ok, "whoami": ok, "netstat": ok, "hostname": ok,
+            "net": _net,
+            "auditpol": _auditpol,
             # --- Linux ---------------------------------------------------
-            "systemctl": _require_first({"status", "is-active", "is-enabled", "is-failed",
-                                         "list-units", "list-unit-files", "list-sockets",
-                                         "list-timers", "show", "cat", "get-default"}),
-            "ss": ok, "uname": ok, "id": ok, "lsblk": ok, "findmnt": ok, "stat": ok,
-            "getenforce": ok, "sestatus": ok, "aa-status": ok, "apparmor_status": ok,
-            "getcap": ok, "uptime": ok, "dpkg-query": ok,
+            "systemctl": _require_first({"status", "is-active", "is-enabled", "list-units",
+                                         "list-unit-files", "show"}),
+            "lsblk": ok,
+            "dpkg-query": _dpkg_query,
+            "rpm": _rpm,
             "ip": _ip,
             "ufw": _require_first({"status"}),
-            "nft": _require_first({"list"}),
-            "iptables": _iptables, "ip6tables": _iptables,
-            "firewall-cmd": _forbid_tokens(set(), lambda a: None if all(
-                x.startswith("--list") or x.startswith("--get") or x in ("--state", "--zone")
-                or x.startswith("--zone=") for x in a) else "firewall-cmd is limited to --list/--get/--state"),
-            "apt": _require_first({"list"}),
-            "rpm": lambda a: None if a and a[0].startswith("-q") else "rpm is limited to queries (-q...)",
-            "dnf": _require_first({"check-update", "updateinfo", "list", "info"}),
+            "nft": _nft,
+            "iptables": _iptables,
+            "apt": _apt,
+            "dnf": _dnf,
             "sshd": lambda a: None if list(a) == ["-T"] else "sshd is limited to 'sshd -T'",
-            "cryptsetup": _require_first({"status", "isluks", "luksdump"}),
-            "find": _find,
-            "timedatectl": _require_first({"status", "show"}),
-            # --- Optional tools (Phase 4/5) -----------------------------
-            "nmap": _nmap,
+            # --- Optional tool (system copy or USB tools/ folder) ---------
             "openssl": _openssl,
         })
 
@@ -253,9 +279,58 @@ class CommandResult:
         return " ".join(self.argv)
 
 
+def _windows_root() -> Path:
+    """The Windows directory from the OS itself (not the inheritable SystemRoot variable)."""
+    try:
+        import ctypes
+        buf = ctypes.create_unicode_buffer(260)
+        n = ctypes.windll.kernel32.GetSystemWindowsDirectoryW(buf, 260)  # type: ignore[attr-defined]
+        if 0 < n < 260:
+            return Path(buf.value)
+    except Exception:  # noqa: BLE001 - non-Windows or restricted environment
+        pass
+    return Path(os.environ.get("SystemRoot", r"C:\Windows"))
+
+
 def _windows_system_dirs() -> list[Path]:
-    root = Path(os.environ.get("SystemRoot", r"C:\Windows"))
+    root = _windows_root()
     return [root / "System32", root / "System32" / "WindowsPowerShell" / "v1.0", root]
+
+
+# Variables that let the host redirect what a Windows child process loads or runs:
+# .NET profilers and runtime hooks, Python start-up hooks, PowerShell policy overrides.
+_WINDOWS_ENV_DROP_PREFIXES = ("COR_", "CORECLR_", "COMPLUS_", "DOTNET_", "PYTHON")
+_WINDOWS_ENV_DROP = {"PSEXECUTIONPOLICYPREFERENCE", "PATH", "PSMODULEPATH"}
+
+
+def windows_child_env(environ: dict[str, str] | os._Environ, windows_root: Path) -> dict[str, str]:
+    """The host environment minus redirection hooks, with system-only PATH and module paths.
+
+    Everything else is inherited: PowerShell and WMI depend on many profile and
+    session variables, and an over-trimmed environment makes queries stall.
+    """
+    env = {k: v for k, v in environ.items()
+           if k.upper() not in _WINDOWS_ENV_DROP and not k.upper().startswith(_WINDOWS_ENV_DROP_PREFIXES)}
+    root = PureWindowsPath(windows_root)
+    sys32 = root / "System32"
+    env["SystemRoot"] = str(root)
+    env["PATH"] = ";".join(str(p) for p in (sys32, root, sys32 / "Wbem",
+                                            sys32 / "WindowsPowerShell" / "v1.0"))
+    # Module paths: drop entries inside the user profile (writable by the user, and by
+    # anything running as the user), keep machine-wide ones, always include the system paths.
+    lookup = {k.upper(): v for k, v in environ.items()}
+    profile = lookup.get("USERPROFILE", "").rstrip("\\").lower()
+    program_files = lookup.get("PROGRAMFILES", r"C:\Program Files")
+    system_paths = [str(PureWindowsPath(program_files) / "WindowsPowerShell" / "Modules"),
+                    str(sys32 / "WindowsPowerShell" / "v1.0" / "Modules")]
+    inherited = [p for p in lookup.get("PSMODULEPATH", "").split(";")
+                 if p and not (profile and p.lower().startswith(profile + "\\"))]
+    module_paths: list[str] = []
+    for p in [*system_paths, *inherited]:
+        if p.lower().rstrip("\\") not in {m.lower().rstrip("\\") for m in module_paths}:
+            module_paths.append(p)
+    env["PSModulePath"] = ";".join(module_paths)
+    return env
 
 
 class CommandRunner:
@@ -277,19 +352,22 @@ class CommandRunner:
         if os.sep in name or (os.altsep and os.altsep in name):
             raise PolicyViolation("Executables must be given by name, not by path")
         base = name.lower().removesuffix(".exe")
-        search: list[Path] = []
-        if base in BUNDLED_TOOLS:
-            search.extend(self.tool_dirs)
+        if not re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,63}", base):
+            raise PolicyViolation(f"'{name}' is not a valid executable name")
+        search: list[Path] = list(self.tool_dirs) if base in BUNDLED_TOOLS else []
+        # Explicit lookup instead of shutil.which(): on Windows, which() also searches the
+        # current directory (Python < 3.12) and accepts .bat/.cmd through PATHEXT.
         if IS_WINDOWS:
-            search.extend(_windows_system_dirs())
-            if base in BUNDLED_TOOLS:
-                pf = os.environ.get("ProgramFiles(x86)") or os.environ.get("ProgramFiles")
-                if pf:
-                    search.append(Path(pf) / "Nmap")
-            path_str = os.pathsep.join(str(p) for p in search)
-            return shutil.which(name, path=path_str)
-        path_str = os.pathsep.join([*(str(p) for p in search), POSIX_SECURE_PATH])
-        return shutil.which(name, path=path_str)
+            for directory in [*search, *_windows_system_dirs()]:
+                candidate = directory / f"{base}.exe"
+                if candidate.is_file():
+                    return str(candidate)
+            return None
+        for directory in [*search, *(Path(d) for d in POSIX_SECURE_PATH.split(":"))]:
+            candidate = directory / base
+            if candidate.is_file() and os.access(candidate, os.X_OK):
+                return str(candidate)
+        return None
 
     def is_available(self, name: str) -> bool:
         try:
@@ -334,7 +412,13 @@ class CommandRunner:
             result.error, result.error_detail = "os_error", str(exc)
             return result
 
-        out_b, err_b = b"", b""
+        # Output is drained by reader threads and capped while it is read, so a command
+        # that prints gigabytes cannot exhaust memory; the excess is discarded.
+        out_buf, err_buf = bytearray(), bytearray()
+        readers = [threading.Thread(target=self._drain, args=(proc.stdout, out_buf), daemon=True),
+                   threading.Thread(target=self._drain, args=(proc.stderr, err_buf), daemon=True)]
+        for t in readers:
+            t.start()
         while True:
             remaining = timeout - (time.monotonic() - started)
             if remaining <= 0:
@@ -344,16 +428,19 @@ class CommandRunner:
                 result.cancelled = True
                 break
             try:
-                out_b, err_b = proc.communicate(timeout=min(0.25, remaining))
+                proc.wait(timeout=min(0.25, remaining))
                 break
             except subprocess.TimeoutExpired:
                 continue
         if result.timed_out or result.cancelled:
             self._kill(proc)
             try:
-                out_b, err_b = proc.communicate(timeout=5)
-            except (subprocess.TimeoutExpired, ValueError):
-                out_b, err_b = b"", b""
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                pass
+        for t in readers:
+            t.join(timeout=5)       # a grandchild may keep a pipe open; never wait forever
+        out_b, err_b = bytes(out_buf), bytes(err_buf)
 
         result.duration = time.monotonic() - started
         result.returncode = proc.returncode
@@ -366,6 +453,24 @@ class CommandRunner:
         return result
 
     # -- helpers ---------------------------------------------------------
+    def _drain(self, pipe, sink: bytearray) -> None:
+        limit = self.max_output_bytes + 1          # one extra byte records truncation
+        try:
+            while True:
+                chunk = pipe.read1(65536)
+                if not chunk:
+                    break
+                room = limit - len(sink)
+                if room > 0:
+                    sink += chunk[:room]
+        except (OSError, ValueError):
+            pass
+        finally:
+            try:
+                pipe.close()
+            except OSError:
+                pass
+
     def _decode(self, data: bytes) -> tuple[str, bool]:
         truncated = len(data) > self.max_output_bytes
         text = data[: self.max_output_bytes].decode("utf-8", errors="replace")
@@ -374,7 +479,7 @@ class CommandRunner:
     @staticmethod
     def _env() -> dict[str, str]:
         if IS_WINDOWS:
-            return dict(os.environ)
+            return windows_child_env(os.environ, _windows_root())
         env = {"PATH": POSIX_SECURE_PATH, "LC_ALL": "C", "LANG": "C"}
         for key in ("HOME", "USER", "LOGNAME", "TERM"):
             if key in os.environ:

@@ -9,6 +9,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import os
+import posixpath
 import stat as st
 from typing import Any, Callable
 
@@ -83,7 +84,17 @@ class FakeFS(HostFS):
                 out.add("/" + "/".join(parts[:i]))
         return out
 
+    def resolve(self, path):
+        for _ in range(40):
+            target = self.links.get(path)
+            if target is None:
+                break
+            path = target if target.startswith("/") else posixpath.normpath(
+                posixpath.join(posixpath.dirname(path), target))
+        return path
+
     def try_read(self, path, max_bytes=2_000_000):
+        path = self.resolve(path)
         if path in self.denied:
             return None, "denied"
         entry = self.files.get(path)
