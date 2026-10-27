@@ -67,9 +67,29 @@ def test_selftest_reports_components(portable_root, capsys):
     out = capsys.readouterr().out
     for part in ("sha256", "PDF writer", "configuration", "GUI (Tkinter)", "Self-test passed"):
         assert part in out
-    gui_ok = "[OK] GUI" in out
-    expected = cli.EXIT_OK if gui_ok else cli.EXIT_ERROR
-    assert cli.main(["--root", str(portable_root), "selftest", "--require-gui"]) == expected
+    # The GUI probe is optional unless --require-gui; judge each run by its own output (Tcl can be
+    # unavailable in one call and available in the next within the same test process).
+    code = cli.main(["--root", str(portable_root), "selftest", "--require-gui"])
+    out = capsys.readouterr().out
+    if "[OK] GUI" in out:
+        assert code == cli.EXIT_OK, out
+    else:
+        assert code == cli.EXIT_ERROR and "[FAIL] GUI" in out and "Self-test FAILED" in out, out
+
+
+def test_selftest_require_gui_fails_without_tk(portable_root, capsys, monkeypatch):
+    import builtins
+    real_import = builtins.__import__
+
+    def no_tk(name, *a, **k):
+        if name == "tkinter":
+            raise ImportError("No module named 'tkinter'")
+        return real_import(name, *a, **k)
+    monkeypatch.setattr(builtins, "__import__", no_tk)
+    assert cli.main(["--root", str(portable_root), "selftest"]) == cli.EXIT_OK          # optional: WARN
+    assert "[WARN] GUI" in capsys.readouterr().out
+    assert cli.main(["--root", str(portable_root), "selftest", "--require-gui"]) == cli.EXIT_ERROR
+    assert "[FAIL] GUI" in capsys.readouterr().out
 
 
 # -- USB preparation ------------------------------------------------------------------------------------
