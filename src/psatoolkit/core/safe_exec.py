@@ -297,29 +297,39 @@ def _windows_system_dirs() -> list[Path]:
     return [root / "System32", root / "System32" / "WindowsPowerShell" / "v1.0", root]
 
 
-# Environment variables Windows programs need; everything else (PATH, PSModulePath,
-# PYTHON*, COR_* profilers, ...) is replaced or dropped so the host cannot redirect them.
-_WINDOWS_ENV_KEEP = (
-    "SystemRoot", "SystemDrive", "windir", "ComSpec", "PATHEXT", "OS", "NUMBER_OF_PROCESSORS",
-    "PROCESSOR_ARCHITECTURE", "PROCESSOR_ARCHITEW6432", "PROCESSOR_IDENTIFIER", "PROCESSOR_LEVEL",
-    "PROCESSOR_REVISION", "TEMP", "TMP", "USERPROFILE", "USERNAME", "USERDOMAIN", "COMPUTERNAME",
-    "ALLUSERSPROFILE", "ProgramData", "ProgramFiles", "ProgramFiles(x86)", "ProgramW6432",
-    "CommonProgramFiles", "CommonProgramFiles(x86)", "CommonProgramW6432", "APPDATA", "LOCALAPPDATA",
-    "PUBLIC", "HOMEDRIVE", "HOMEPATH",
-)
+# Variables that let the host redirect what a Windows child process loads or runs:
+# .NET profilers and runtime hooks, Python start-up hooks, PowerShell policy overrides.
+_WINDOWS_ENV_DROP_PREFIXES = ("COR_", "CORECLR_", "COMPLUS_", "DOTNET_", "PYTHON")
+_WINDOWS_ENV_DROP = {"PSEXECUTIONPOLICYPREFERENCE", "PATH", "PSMODULEPATH"}
 
 
 def windows_child_env(environ: dict[str, str] | os._Environ, windows_root: Path) -> dict[str, str]:
-    lookup = {k.upper(): v for k, v in environ.items()}
-    env = {k: lookup[k.upper()] for k in _WINDOWS_ENV_KEEP if k.upper() in lookup}
+    """The host environment minus redirection hooks, with system-only PATH and module paths.
+
+    Everything else is inherited: PowerShell and WMI depend on many profile and
+    session variables, and an over-trimmed environment makes queries stall.
+    """
+    env = {k: v for k, v in environ.items()
+           if k.upper() not in _WINDOWS_ENV_DROP and not k.upper().startswith(_WINDOWS_ENV_DROP_PREFIXES)}
     root = PureWindowsPath(windows_root)
     sys32 = root / "System32"
     env["SystemRoot"] = str(root)
     env["PATH"] = ";".join(str(p) for p in (sys32, root, sys32 / "Wbem",
                                             sys32 / "WindowsPowerShell" / "v1.0"))
-    program_files = env.get("ProgramFiles", r"C:\Program Files")
-    env["PSModulePath"] = ";".join((str(PureWindowsPath(program_files) / "WindowsPowerShell" / "Modules"),
-                                    str(sys32 / "WindowsPowerShell" / "v1.0" / "Modules")))
+    # Module paths: drop entries inside the user profile (writable by the user, and by
+    # anything running as the user), keep machine-wide ones, always include the system paths.
+    lookup = {k.upper(): v for k, v in environ.items()}
+    profile = lookup.get("USERPROFILE", "").rstrip("\\").lower()
+    program_files = lookup.get("PROGRAMFILES", r"C:\Program Files")
+    system_paths = [str(PureWindowsPath(program_files) / "WindowsPowerShell" / "Modules"),
+                    str(sys32 / "WindowsPowerShell" / "v1.0" / "Modules")]
+    inherited = [p for p in lookup.get("PSMODULEPATH", "").split(";")
+                 if p and not (profile and p.lower().startswith(profile + "\\"))]
+    module_paths: list[str] = []
+    for p in [*system_paths, *inherited]:
+        if p.lower().rstrip("\\") not in {m.lower().rstrip("\\") for m in module_paths}:
+            module_paths.append(p)
+    env["PSModulePath"] = ";".join(module_paths)
     return env
 
 

@@ -211,19 +211,48 @@ def test_output_is_truncated_and_redacted():
     assert "hunter2" not in result.stdout and "[REDACTED]" in result.stdout
 
 
-def test_windows_child_env_is_minimal_and_pins_search_paths():
+def test_windows_child_env_drops_redirection_hooks_and_pins_search_paths():
     from pathlib import Path
 
     from psatoolkit.core.safe_exec import windows_child_env
-    host = {"PATH": r"C:\Users\x\evil;C:\Windows\System32", "PSMODULEPATH": r"C:\Users\x\Modules",
-            "SYSTEMROOT": r"C:\Windows", "TEMP": r"C:\Temp", "PYTHONPATH": r"C:\x", "COR_PROFILER": "{bad}",
-            "PROGRAMFILES": r"C:\Program Files", "Secret_Token": "hunter2"}
+    host = {"PATH": r"C:\Users\x\evil;C:\Windows\System32",
+            "PSMODULEPATH": r"C:\Users\x\Documents\WindowsPowerShell\Modules;C:\Modules\az;"
+                            r"C:\Program Files\WindowsPowerShell\Modules",
+            "USERPROFILE": r"C:\Users\x", "SYSTEMROOT": r"C:\Windows", "TEMP": r"C:\Temp",
+            "PYTHONPATH": r"C:\x", "COR_PROFILER": "{bad}", "COR_ENABLE_PROFILING": "1",
+            "COMPLUS_ProfAPI_ProfilerCompatibilitySetting": "x", "DOTNET_STARTUP_HOOKS": r"C:\x.dll",
+            "PSExecutionPolicyPreference": "Bypass", "PROGRAMFILES": r"C:\Program Files",
+            "APPDATA": r"C:\Users\x\AppData\Roaming"}
     env = windows_child_env(host, Path(r"C:\Windows"))
-    assert "evil" not in env["PATH"] and env["PATH"].split(";")[0].endswith("System32")
-    assert "Users" not in env["PSModulePath"] and env["PSModulePath"].endswith(r"v1.0\Modules")
-    assert env["TEMP"] == r"C:\Temp"
-    for dropped in ("PYTHONPATH", "COR_PROFILER", "Secret_Token", "PSMODULEPATH"):
+    assert "evil" not in env["PATH"] and env["PATH"].split(";")[0] == r"C:\Windows\System32"
+    modules = env["PSModulePath"].split(";")
+    assert modules[:2] == [r"C:\Program Files\WindowsPowerShell\Modules",
+                           r"C:\Windows\System32\WindowsPowerShell\v1.0\Modules"]
+    assert r"C:\Modules\az" in modules                         # machine-wide entries are kept
+    assert not any(m.startswith(r"C:\Users\x") for m in modules)  # user-writable ones are not
+    assert len(modules) == len({m.lower() for m in modules})
+    assert env["TEMP"] == r"C:\Temp" and env["APPDATA"].endswith("Roaming")   # session variables inherited
+    for dropped in ("PYTHONPATH", "COR_PROFILER", "COR_ENABLE_PROFILING", "DOTNET_STARTUP_HOOKS",
+                    "COMPLUS_ProfAPI_ProfilerCompatibilitySetting", "PSExecutionPolicyPreference",
+                    "PSMODULEPATH"):
         assert dropped not in env
+
+
+@pytest.mark.skipif(not sys.platform.startswith("win"), reason="real Windows PowerShell")
+def test_windows_powershell_query_is_fast_with_the_child_environment():
+    """Regression guard: an over-trimmed environment once made every query run into its timeout."""
+    import os
+
+    from psatoolkit.modules._common import ps_command
+    argv = ps_command("Get-CimInstance -ClassName Win32_OperatingSystem | Select-Object Caption, BuildNumber")
+    timings = {}
+    for label, env in (("child", None), ("full", dict(os.environ))):
+        runner = CommandRunner(default_timeout=60)
+        if env is not None:
+            runner._env = lambda env=env: env                 # comparison run with the unmodified host env
+        result = runner.run(argv)
+        timings[label] = (round(result.duration, 1), result.ok, result.timed_out, result.stderr[:300])
+    assert timings["child"][1] and timings["child"][0] < 30, timings
 
 
 @pytest.mark.parametrize("name", ["..", "net accounts", "a;b", "$(id)", "-x", "x" * 70])

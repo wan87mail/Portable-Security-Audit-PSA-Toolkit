@@ -32,10 +32,10 @@ jobs:
       # through PowerShell and verifies every started process against the command policy.
       - name: Tests (Linux, with virtual display for the GUI test)
         if: runner.os == 'Linux'
-        run: xvfb-run -a python -m pytest -q -rs
+        run: xvfb-run -a python -m pytest -q -rs --durations=15
       - name: Tests (Windows)
         if: runner.os == 'Windows'
-        run: python -m pytest -q -rs
+        run: python -m pytest -q -rs --durations=15
       - name: Live read-only audit of the runner (evidence of real-OS behaviour)
         shell: bash
         run: |

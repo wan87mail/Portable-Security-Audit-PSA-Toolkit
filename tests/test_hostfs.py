@@ -14,7 +14,7 @@ posix_only = pytest.mark.skipif(sys.platform.startswith("win"), reason="POSIX fi
 @pytest.fixture
 def tree(tmp_path):
     (tmp_path / "etc").mkdir()
-    (tmp_path / "etc" / "conf").write_text("a=1\n")
+    (tmp_path / "etc" / "conf").write_bytes(b"a=1\n")
     return tmp_path
 
 

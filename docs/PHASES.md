@@ -147,7 +147,7 @@ a drive without `config/default.toml`.
 | File | Purpose |
 |---|---|
 | `docs/SECURITY_REVIEW.md` | Threat model, 14 findings (3 high) with fixes, residual risks, dependency and usability review |
-| `src/psatoolkit/core/safe_exec.py` | Least-privilege allow-list (15 programs), strict per-program rules, explicit `.exe`-only resolution from system directories, minimal Windows child environment, output capped while reading |
+| `src/psatoolkit/core/safe_exec.py` | Least-privilege allow-list (15 programs), strict per-program rules, explicit `.exe`-only resolution from system directories, Windows child environment without redirection hooks, output capped while reading |
 | `src/psatoolkit/core/hostfs.py` | Regular files only (no devices/FIFOs), symlinks resolved and confined to the root, `resolve()` |
 | `src/psatoolkit/core/baseline.py`, `modules/baseline_audit.py` | Canonical paths required; symlinks to protected files refused at run time |
 | `src/psatoolkit/core/paths.py` | `read_limited()` for files from outside the toolkit |
