@@ -186,3 +186,20 @@ def test_build_files_are_consistent():
     workflow = (REPO_ROOT / ".github" / "workflows" / "build.yml").read_text()
     assert "permissions:" in workflow and "contents: read" in workflow
     assert "selftest --require-gui" in workflow
+
+
+def test_build_supply_chain_is_pinned():
+    """Phase 9: build dependencies are hash-locked and CI actions are pinned to commits."""
+    import re
+    lock = (REPO_ROOT / "requirements-build.lock").read_text()
+    entries = re.split(r"\n(?=[a-z0-9])", lock.split("\n", 4)[-1].strip())
+    pinned = [e for e in entries if "==" in e.split("\n", 1)[0]]
+    assert any(e.startswith("pyinstaller==6.19.0") for e in pinned)
+    assert all("--hash=sha256:" in e for e in pinned), "every locked package needs a hash"
+    for script in ("build_linux.sh", "build_windows.ps1"):
+        text = (REPO_ROOT / "packaging" / script).read_text()
+        assert "--require-hashes" in text and "requirements-build.lock" in text, script
+        assert "install --upgrade pip" not in text, script       # would fetch an unpinned pip
+    workflow = (REPO_ROOT / ".github" / "workflows" / "build.yml").read_text()
+    uses = re.findall(r"uses:\s*(\S+)", workflow)
+    assert uses and all(re.fullmatch(r"[\w.-]+/[\w.-]+@[0-9a-f]{40}", u) for u in uses), uses

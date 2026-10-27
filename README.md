@@ -339,7 +339,7 @@ xvfb-run -a python -m pytest tests/test_gui_smoke.py    # GUI test on Linux (nee
 | `Integrity check FAILED` (exit 4) | Files changed since the drive was prepared. Don't use the drive; rebuild it from a trusted copy. |
 | Many checks show `skipped: Requires administrator/root` | Run elevated (*Run as administrator* or `sudo`) if your authorization allows it. |
 | `Python 3.10+ was not found` (Linux) | Install Python 3.10+ on the host, or wait for the frozen Linux build (Phase 8). |
-| `'py' not found` (Windows) | Install Python with the **py launcher** option (see 2.1). |
+| `Python launcher py.exe not found` (Windows) | Install Python with the **py launcher** option (see 2.1). The launcher is looked up only in `C:\Windows\py.exe` and `%LOCALAPPDATA%\Programs\Python\Launcher\py.exe`, never in the current folder. |
 | Blocked by antivirus or AppLocker | Ask your endpoint-security team to allow the tool. It does not attempt to bypass security controls. |
 
 ---
@@ -376,6 +376,7 @@ More detail:
 [User guide](docs/USER_GUIDE.md) ·
 [Developer guide](docs/DEVELOPMENT.md) ·
 [Build & deployment](docs/BUILD.md) ·
+[Security review](docs/SECURITY_REVIEW.md) ·
 [Licences](LICENSES.md)
 
 ---
@@ -392,8 +393,10 @@ More detail:
 | 6 | HTML, PDF and CSV reports | ✅ Done |
 | 7 | Security baselines and expanded demo | ✅ Done |
 | 8 | Standalone Windows `.exe` and Linux build | ✅ Done |
-| 9–10 | Security review, final documentation, release checklist | ⏳ Planned |
+| 9 | Security, dependency and usability review ([findings](docs/SECURITY_REVIEW.md)) | ✅ Done |
+| 10 | Final documentation and release checklist | ⏳ Planned |
 
-The Windows checks have been tested against mocked PowerShell output, not yet
-on a real Windows host. Run [docs/TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md)
-before field use. Details are in [docs/PHASES.md](docs/PHASES.md).
+The Windows checks run in CI as a live read-only audit of Windows Server
+2022 and 2025 runners. They have not been run on Windows 10/11 desktops
+here, so run [docs/TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md) before field use.
+Details are in [docs/PHASES.md](docs/PHASES.md).

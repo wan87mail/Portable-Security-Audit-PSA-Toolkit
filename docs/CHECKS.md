@@ -1,6 +1,6 @@
 # Check catalogue
 
-Generated from the code by `scripts/gen_checks_doc.py` (toolkit 0.8.0). Do not edit by hand.
+Generated from the code by `scripts/gen_checks_doc.py` (toolkit 0.9.0). Do not edit by hand.
 
 All checks are read-only. **Admin** means the check is skipped without Administrator/root and the reason is listed in the report's limitations. Checks marked *partial* run without elevation but record reduced coverage.
 
@@ -32,7 +32,7 @@ Firewall, antivirus, SMB, RDP, UAC, accounts, patching, BitLocker, services, per
 | WIN-ACCT-002 | Guest and local user accounts | windows | No | - | Reviews local accounts for an enabled Guest, accounts without passwords and stale accounts. |
 | WIN-ACCT-003 | Local Administrators group membership | windows | No | - | Lists members of the local Administrators group and flags excessive membership. |
 | WIN-PATCH-001 | Security update recency | windows | No | - | Checks when updates were last installed, the Windows Update service and pending reboots. |
-| WIN-BL-001 | BitLocker drive encryption | windows | **Yes**: BitLocker volume status (Get-BitLockerVolume / manage-bde) is only readable by administrators. | - | Checks that the operating system volume (and fixed data volumes) are encrypted. |
+| WIN-BL-001 | BitLocker drive encryption | windows | **Yes**: BitLocker volume status (Get-BitLockerVolume) is only readable by administrators. | - | Checks that the operating system volume (and fixed data volumes) are encrypted. |
 | WIN-SVC-001 | Risky services and unquoted service paths | windows | No | - | Flags risky running services and services with unquoted executable paths (CWE-428). |
 | WIN-PERM-001 | Service executable permissions | windows | No | - | Checks whether non-administrators can modify executables run by services. |
 | WIN-LSA-001 | Credential protection settings (LSA, NTLM, WDigest, LLMNR) | windows | No | - | Checks settings that protect credentials in memory and on the network. |

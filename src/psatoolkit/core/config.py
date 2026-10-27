@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from psatoolkit.core.paths import read_limited
 from psatoolkit.core.validation import HARD_MAX_HOSTS, HARD_MAX_PORTS, ValidationError, parse_ports
 
 try:  # Python 3.11+
@@ -143,9 +144,9 @@ def parse_simple_toml(text: str) -> dict[str, Any]:
 
 def _read_toml(path: Path) -> dict[str, Any]:
     try:
-        raw = path.read_bytes()
+        raw = read_limited(path, 1_000_000)
     except OSError as exc:
-        raise ConfigError(f"{path}: cannot read: {exc}") from None
+        raise ConfigError(f"{path}: cannot read: {exc.strerror or exc}") from None
     try:
         if _toml is not None:
             return _toml.loads(raw.decode("utf-8"))

@@ -6,6 +6,7 @@ import json
 import re
 import shutil
 import subprocess
+import sys
 import zlib
 
 import pytest
@@ -74,6 +75,18 @@ def test_all_formats_and_sums(demo_folder):
     assert res.ok, res.lines
     if shutil.which("sha256sum"):
         assert subprocess.run(["sha256sum", "-c", "--quiet", "SHA256SUMS"], cwd=demo_folder).returncode == 0
+
+
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="POSIX permissions")
+def test_report_folder_is_owner_only(demo_folder):
+    assert demo_folder.stat().st_mode & 0o077 == 0
+
+
+def test_verification_refuses_oversized_or_special_files(demo_folder, monkeypatch):
+    from psatoolkit.reporting import json_report
+    monkeypatch.setattr(json_report, "MAX_REPORT_BYTES", 100)
+    result = json_report.verify_json_report(demo_folder / "report.json")
+    assert not result.ok and "larger than 100 bytes" in result.message
 
 
 def test_integrity_files_use_lf_line_endings(demo_folder):

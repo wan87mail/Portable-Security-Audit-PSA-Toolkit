@@ -14,9 +14,10 @@ from pathlib import Path
 from typing import Any, Callable
 
 from psatoolkit.core.models import AssessmentResult
+from psatoolkit.core.paths import read_limited
 from psatoolkit.reporting.csv_report import write_csv_report
 from psatoolkit.reporting.html_report import write_html_report
-from psatoolkit.reporting.json_report import build_document, verify_json_report, write_document
+from psatoolkit.reporting.json_report import MAX_REPORT_BYTES, build_document, verify_json_report, write_document
 from psatoolkit.reporting.pdf_report import write_pdf_report
 
 SUMS_FILE = "SHA256SUMS"
@@ -81,12 +82,12 @@ def regenerate(report_json: Path, formats: list[str], dest: Path) -> ReportOutpu
     check = verify_json_report(report_json)
     if not check.canonical_ok:
         raise ValueError(f"{report_json} failed integrity verification ({check.message}); refusing to export it.")
-    doc = json.loads(report_json.read_text(encoding="utf-8"))
-    dest.mkdir(parents=True, exist_ok=True)
+    doc = json.loads(read_limited(report_json, MAX_REPORT_BYTES).decode("utf-8"))
+    dest.mkdir(mode=0o700, parents=True, exist_ok=True)
     out = ReportOutput(dest)
     if dest.resolve() != report_json.parent.resolve():
         target = dest / "report.json"
-        target.write_bytes(report_json.read_bytes())
+        target.write_bytes(read_limited(report_json, MAX_REPORT_BYTES))
         out.files.append(target)
     render_formats(doc, dest, formats, out)
     out.files.append(write_sums(dest))
@@ -115,7 +116,12 @@ def verify_report_folder(folder: Path) -> FolderVerification:
         lines.append(f"{SUMS_FILE}: missing (only report.json could be verified)")
         return FolderVerification(ok, lines)
     listed = {}
-    for line in sums.read_text(encoding="utf-8").splitlines():
+    try:
+        sums_text = read_limited(sums, 1_000_000).decode("utf-8", "replace")
+    except OSError as exc:
+        lines.append(f"{SUMS_FILE}: unreadable ({exc.strerror or exc})")
+        return FolderVerification(False, lines)
+    for line in sums_text.splitlines():
         digest, _, name = line.partition("  ")
         if name and "/" not in name and "\\" not in name:
             listed[name] = digest.strip().lower()

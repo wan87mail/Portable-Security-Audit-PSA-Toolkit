@@ -122,3 +122,26 @@ def free_space_mb(directory: Path) -> int | None:
         return shutil.disk_usage(directory).free // (1024 * 1024)
     except OSError:
         return None
+
+
+def read_limited(path: Path, limit: int) -> bytes:
+    """Read a regular file of at most ``limit`` bytes.
+
+    Used for files that come from outside the toolkit (baselines, report folders
+    handed over by others, configuration): a FIFO or device would block or have
+    side effects, and an oversized file would exhaust memory.
+    """
+    import errno
+    import stat as stat_mod
+
+    st = os.stat(path)
+    if not stat_mod.S_ISREG(st.st_mode):
+        raise OSError(errno.EINVAL, f"{path} is not a regular file")
+    if st.st_size > limit:
+        raise OSError(errno.EFBIG, f"{path} is larger than {limit} bytes")
+    with open(path, "rb") as fh:
+        data = fh.read(limit + 1)
+    if len(data) > limit:
+        raise OSError(errno.EFBIG, f"{path} is larger than {limit} bytes")
+    return data
+

@@ -40,7 +40,7 @@ class AuditLog:
         self._prev = GENESIS
         self.memory: list[dict[str, Any]] = []   # also kept in memory for the report
         if path is not None:
-            path.parent.mkdir(parents=True, exist_ok=True)
+            path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
 
     def write(self, event: str, **details: Any) -> dict[str, Any]:
         with self._lock:
@@ -109,7 +109,7 @@ def setup_app_logging(logs_dir: Path | None, level: str = "INFO", console: bool 
     log_file = None
     if logs_dir is not None:
         try:
-            logs_dir.mkdir(parents=True, exist_ok=True)
+            logs_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
             log_file = logs_dir / f"psa-{datetime.now(timezone.utc):%Y%m%d}.log"
             fh = logging.FileHandler(log_file, encoding="utf-8")
             fh.setFormatter(fmt)

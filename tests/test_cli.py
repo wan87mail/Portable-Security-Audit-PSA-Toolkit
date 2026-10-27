@@ -1,3 +1,4 @@
+import argparse
 import json
 import subprocess
 
@@ -92,3 +93,15 @@ def test_info_and_modules(run, capsys):
 def test_bad_config_reports_error(run, portable_root):
     (portable_root / "config" / "local.toml").write_text("not = [valid")
     assert run("info") == cli.EXIT_ERROR
+
+
+def test_targets_and_preview_state_that_no_network_module_is_included(run, portable_root, capsys):
+    assert run("preview-scan", "--target", "192.0.2.10", "--ports", "22") == cli.EXIT_OK
+    assert "not contacted" in capsys.readouterr().out
+    assert run("audit", "--demo", *AUTH, "--target", "192.0.2.10", "--target-ref", "CHG-9") == cli.EXIT_OK
+    assert "--target is ignored in demo mode" in capsys.readouterr().err
+    tk = cli.Toolkit(root=portable_root)
+    args = argparse.Namespace(target=["192.0.2.10"], target_ref=["CHG-9"], confirm="I AM AUTHORIZED")
+    cli._add_targets(tk, args)
+    captured = capsys.readouterr()
+    assert "Authorized target added: 192.0.2.10" in captured.out and cli.NO_NETWORK_NOTE in captured.err

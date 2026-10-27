@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -58,18 +59,21 @@ class ReportSummary:
 
 def import_baseline_file(toolkit: "Toolkit", source: Path, replace: bool = False) -> Path:
     """Validate a baseline and copy it into the configured baselines directory. Returns the target path."""
-    import shutil
-
-    from psatoolkit.core.baseline import load_baseline
+    from psatoolkit.core.baseline import parse_baseline_bytes, read_baseline_bytes
     from psatoolkit.core.validation import safe_filename
 
-    baseline = load_baseline(source)                     # raises BaselineError when invalid
+    # Read once and install exactly the bytes that were validated (the source could
+    # change between a validation read and a later copy).
+    raw = read_baseline_bytes(source)
+    baseline = parse_baseline_bytes(raw, source)        # raises BaselineError when invalid
     directory = Path(toolkit.config.baselines.directory)
     target = directory / f"{safe_filename(baseline.name)}.json"
     if target.exists() and not replace:
         raise FileExistsError(f"{target} already exists (use replace to overwrite).")
     directory.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(source, target)
+    tmp = target.with_name(f".{target.name}.import")
+    tmp.write_bytes(raw)
+    os.replace(tmp, target)
     return target
 
 

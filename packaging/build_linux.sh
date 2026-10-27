@@ -26,8 +26,8 @@ done
 "$PY" -m venv .build-venv
 # shellcheck disable=SC1091
 . .build-venv/bin/activate
-python -m pip install --upgrade pip >/dev/null
-python -m pip install -r requirements-build.txt
+# Hash-locked: every package (and its dependencies) must match requirements-build.lock.
+python -m pip install --require-hashes --only-binary=:all: -r requirements-build.lock
 
 if [[ "$SKIP_TESTS" == 0 ]]; then
     PYTHONPATH=src python -m pytest -q
