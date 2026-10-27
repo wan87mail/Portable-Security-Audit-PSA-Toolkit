@@ -1,8 +1,11 @@
+import sys
+
 import pytest
 
 from psatoolkit.core import osdetect
 from psatoolkit.core.osdetect import (BEST_EFFORT, SUPPORTED, UNSUPPORTED, classify_linux, classify_windows,
-                                      normalize_arch, parse_os_release)
+                                      detect_os, normalize_arch, parse_os_release, windows_machine,
+                                      windows_version_info)
 
 UBUNTU_2404 = '''PRETTY_NAME="Ubuntu 24.04.1 LTS"
 NAME="Ubuntu"
@@ -92,7 +95,48 @@ def test_detect_os_linux_missing_os_release(tmp_path, monkeypatch):
 
 def test_detect_os_windows(monkeypatch):
     monkeypatch.setattr(osdetect.sys, "platform", "win32")
-    monkeypatch.setattr(osdetect.platform, "win32_ver", lambda: ("10", "10.0.20348", "", "Multiprocessor Free"))
+    monkeypatch.setattr(osdetect.sys, "getwindowsversion", lambda: _WinVer(10, 0, 20348, product_type=3),
+                        raising=False)
     monkeypatch.setattr(osdetect.platform, "win32_edition", lambda: "ServerDatacenter", raising=False)
+    monkeypatch.setenv("PROCESSOR_ARCHITECTURE", "AMD64")
     info = osdetect.detect_os()
-    assert info.name.startswith("Windows Server 2022")
+    assert info.name.startswith("Windows Server 2022") and info.architecture == "x86_64"
+    # a server whose edition string lacks "Server" is still classified as a server (product_type)
+    monkeypatch.setattr(osdetect.platform, "win32_edition", lambda: "", raising=False)
+    assert osdetect.detect_os().is_server
+
+
+class _WinVer(tuple):
+    """Shape of ``sys.getwindowsversion()``: a tuple with named attributes."""
+
+    def __new__(cls, major, minor, build, product_type=1, platform_version=None):
+        obj = super().__new__(cls, (major, minor, build, 2, ""))
+        obj.product_type = product_type
+        obj.platform_version = platform_version
+        return obj
+
+
+def test_windows_version_info_without_processes():
+    assert windows_version_info(_WinVer(10, 0, 22631)) == ("10", "10.0.22631", False)
+    assert windows_version_info(_WinVer(10, 0, 20348, product_type=3)) == ("10", "10.0.20348", True)
+    assert windows_version_info(_WinVer(10, 0, 26100, product_type=2))[2] is True     # domain controller
+    # platform_version (real kernel version) wins over a compatibility-shimmed tuple
+    assert windows_version_info(_WinVer(6, 2, 9200, platform_version=(10, 0, 26100)))[1] == "10.0.26100"
+    assert windows_version_info(_WinVer(6, 1, 7601))[0] == "7"
+
+
+def test_windows_machine_prefers_wow64_variable():
+    assert windows_machine({"PROCESSOR_ARCHITECTURE": "x86", "PROCESSOR_ARCHITEW6432": "AMD64"}) == "AMD64"
+    assert windows_machine({"PROCESSOR_ARCHITECTURE": "ARM64"}) == "ARM64"
+    assert windows_machine({}) == ""
+
+
+@pytest.mark.skipif(not sys.platform.startswith("win"), reason="Windows host detection")
+def test_detect_os_on_windows_starts_no_processes(monkeypatch):
+    import subprocess
+
+    def no_popen(*a, **k):
+        raise AssertionError(f"OS detection started a process: {a}")
+    monkeypatch.setattr(subprocess, "Popen", no_popen)
+    info = detect_os()
+    assert info.family == "windows" and int(info.build) >= 10240 and info.architecture != "unknown"

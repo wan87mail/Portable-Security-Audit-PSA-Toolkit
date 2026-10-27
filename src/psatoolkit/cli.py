@@ -24,6 +24,8 @@ from psatoolkit.core.privileges import elevation_help
 from psatoolkit.core.session import SessionOutcome, Toolkit
 from psatoolkit.core.stop import StopToken
 from psatoolkit.core.validation import ValidationError, parse_ports
+from psatoolkit.core.config import SUPPORTED_REPORT_FORMATS
+from psatoolkit.reporting import regenerate, verify_report_folder
 from psatoolkit.reporting.json_report import verify_json_report
 
 EXIT_OK, EXIT_ERROR, EXIT_USAGE, EXIT_UNAUTHORIZED, EXIT_INTEGRITY, EXIT_STOPPED = 0, 1, 2, 3, 4, 130
@@ -149,8 +151,15 @@ def _summarise(outcome: SessionOutcome) -> None:
     _print(f"Host          : {r.host.hostname} - {r.host.os_name}")
     _print(f"Status        : {r.status}")
     _print("Findings      : " + ", ".join(f"{k}={v}" for k, v in r.severity_counts().items()))
+    if r.posture:
+        p = r.posture
+        _print(f"Posture       : {p['rating']} - {p['reason']} (coverage {p['coverage_percent']}% of "
+               f"{p['checks_applicable']} applicable checks)")
+        if p.get("caveat"):
+            _print(f"                {p['caveat']}")
     for f in r.findings:
-        _print(f"  {f.severity.value.upper():<13} {f.finding_id:<22} {f.title} [{f.status.value}]")
+        _print(f"  {f.severity.value.upper():<13} {f.risk_score or 0:>4.1f}  {f.priority:<10} "
+               f"{f.finding_id:<24} {f.title} [{f.status.value}]")
     if r.limitations:
         _print("Limitations:")
         for lim in r.limitations:
@@ -179,7 +188,7 @@ def cmd_audit(tk: Toolkit, args: argparse.Namespace) -> int:
             return EXIT_USAGE
     else:
         selected = sorted(available) if demo else [m.module_id for m in tk.available_modules()
-                                                     if m.category == "local"]
+                                                     if m.category in ("local", "baseline")]
     try:
         authorization = _authorize(tk, args, demo)
         if not demo:
@@ -244,9 +253,39 @@ def cmd_verify(tk: Toolkit, args: argparse.Namespace) -> int:
 
 
 def cmd_verify_report(tk: Toolkit, args: argparse.Namespace) -> int:
-    result = verify_json_report(Path(args.path))
-    _print(f"{result.path}: {result.message}")
-    return EXIT_OK if result.ok else EXIT_INTEGRITY
+    path = Path(args.path)
+    if path.is_dir():
+        result = verify_report_folder(path)
+        _print(f"{path}:")
+        for line in result.lines:
+            _print(f"  {line}")
+        _print("Report folder integrity " + ("PASSED" if result.ok else "FAILED"))
+        return EXIT_OK if result.ok else EXIT_INTEGRITY
+    single = verify_json_report(path)
+    _print(f"{single.path}: {single.message}")
+    return EXIT_OK if single.ok else EXIT_INTEGRITY
+
+
+def cmd_export_report(tk: Toolkit, args: argparse.Namespace) -> int:
+    """Re-render HTML/PDF/CSV from a verified report.json into an operator-chosen folder."""
+    source = Path(args.report)
+    if source.is_dir():
+        source = source / "report.json"
+    formats = [f.strip().lower() for f in args.formats.split(",") if f.strip()]
+    bad = [f for f in formats if f not in SUPPORTED_REPORT_FORMATS]
+    if bad:
+        _err(f"Unsupported format(s): {', '.join(bad)}. Choose from {', '.join(SUPPORTED_REPORT_FORMATS)}.")
+        return EXIT_USAGE
+    try:
+        out = regenerate(source, formats, Path(args.dest))
+    except (OSError, ValueError) as exc:
+        _err(f"Export failed: {exc}")
+        return EXIT_INTEGRITY if isinstance(exc, ValueError) else EXIT_ERROR
+    for p in out.files:
+        _print(f"Exported: {p}")
+    for err in out.errors:
+        _err(err)
+    return EXIT_ERROR if out.errors else EXIT_OK
 
 
 def cmd_verify_log(tk: Toolkit, args: argparse.Namespace) -> int:
@@ -267,6 +306,105 @@ def cmd_reports(tk: Toolkit, args: argparse.Namespace) -> int:
         _print(f"{r.started_at}  {r.assessment_id}  {r.hostname:<28} {r.mode:<5} {r.status:<10} {counts}")
         _print(f"    {r.folder}")
     return EXIT_OK
+
+
+def cmd_baselines(tk: Toolkit, args: argparse.Namespace) -> int:
+    from psatoolkit.core.baseline import load_directory
+
+    directory = Path(tk.config.baselines.directory)
+    baselines, errors = load_directory(directory)
+    _print(f"Baselines in {directory}:")
+    for b in baselines:
+        applies = "applies" if b.applies_to(tk.os_info.family, tk.os_info.distro_id) else "not for this OS"
+        _print(f"  {b.name} v{b.version}  [{b.os_family}{'/' + ','.join(b.distros) if b.distros else ''}]  "
+               f"{len(b.rules)} rules  {applies}  sha256={b.sha256[:16]}...  ({b.path.name if b.path else ''})")
+    for err in errors:
+        _print(f"  REJECTED {err}")
+    if not baselines and not errors:
+        _print("  none (import one with 'import-baseline <file>')")
+    return EXIT_ERROR if errors else EXIT_OK
+
+
+def cmd_import_baseline(tk: Toolkit, args: argparse.Namespace) -> int:
+    """Validate a baseline file and copy it into the drive's baselines/ folder."""
+    from psatoolkit.core.baseline import BaselineError, load_baseline
+    from psatoolkit.core.session import import_baseline_file
+
+    try:
+        target = import_baseline_file(tk, Path(args.file), replace=args.replace)
+    except BaselineError as exc:
+        _err(f"Baseline rejected: {exc}")
+        return EXIT_USAGE
+    except FileExistsError as exc:
+        _err(str(exc))
+        return EXIT_USAGE
+    except OSError as exc:
+        _err(f"Import failed: {exc}")
+        return EXIT_ERROR
+    baseline = load_baseline(target)
+    by_type: dict[str, int] = {}
+    for r in baseline.rules:
+        by_type[r.check_type] = by_type.get(r.check_type, 0) + 1
+    _print(f"Imported '{baseline.name}' v{baseline.version} ({len(baseline.rules)} rules) -> {target}")
+    _print("  rule types: " + ", ".join(f"{k}={v}" for k, v in sorted(by_type.items())))
+    _print(f"  SHA-256: {baseline.sha256}")
+    _print("Rebuild the drive integrity manifest now (build-manifest) so the baseline is covered by 'verify'.")
+    return EXIT_OK
+
+
+def selftest_results() -> list[tuple[str, bool, str, bool]]:
+    """(component, ok, detail, required) for the runtime pieces a build must contain."""
+    import csv
+    import hashlib
+    import io
+    import zlib
+
+    results: list[tuple[str, bool, str, bool]] = []
+
+    def probe(name: str, required: bool, fn) -> None:
+        try:
+            results.append((name, True, str(fn() or "ok"), required))
+        except Exception as exc:  # noqa: BLE001 - reported to the operator
+            results.append((name, False, f"{type(exc).__name__}: {exc}", required))
+
+    probe("sha256", True, lambda: hashlib.sha256(b"psa").hexdigest()[:12])
+    probe("zlib (PDF compression)", True, lambda: len(zlib.compress(b"x" * 100)))
+    probe("csv", True, lambda: csv.writer(io.StringIO()) and "ok")
+
+    def pdf():
+        from psatoolkit.reporting.pdfgen import PdfDocument
+        doc = PdfDocument("selftest")
+        doc.text(doc.new_page(), 50, 50, "selftest")
+        data = doc.to_bytes()
+        assert data.startswith(b"%PDF-1.4")
+        return f"{len(data)} bytes"
+    probe("PDF writer", True, pdf)
+
+    def config():
+        from psatoolkit.core.config import build_config
+        return build_config({}).reporting.formats
+    probe("configuration", True, config)
+
+    def tk():
+        import tkinter
+        interp = tkinter.Tcl()               # needs no display
+        return f"Tcl/Tk {interp.eval('info patchlevel')}"
+    probe("GUI (Tkinter)", False, tk)
+    return results
+
+
+def cmd_selftest(tk_: Toolkit, args: argparse.Namespace) -> int:
+    results = selftest_results()
+    frozen = getattr(sys, "frozen", False)
+    _print(f"{TOOL_NAME} {__version__} self-test ({'frozen build' if frozen else 'source'}; Python "
+           f"{sys.version.split()[0]}; root {tk_.paths.root})")
+    failed = False
+    for name, ok, detail, required in results:
+        required = required or (args.require_gui and name.startswith("GUI"))
+        _print(f"  [{'OK' if ok else ('FAIL' if required else 'WARN')}] {name}: {detail}")
+        failed |= required and not ok
+    _print("Self-test " + ("FAILED" if failed else "passed"))
+    return EXIT_ERROR if failed else EXIT_OK
 
 
 def cmd_build_manifest(tk: Toolkit, args: argparse.Namespace) -> int:
@@ -320,24 +458,46 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--ports")
 
     sub.add_parser("verify", help="verify tool integrity against checksums/manifest.json")
-    vr = sub.add_parser("verify-report", help="verify a report.json integrity hash")
+    vr = sub.add_parser("verify-report", help="verify a report folder (SHA256SUMS + canonical hash) or report.json")
     vr.add_argument("path")
+    ex = sub.add_parser("export-report", help="re-render a verified report into another folder/format")
+    ex.add_argument("report", help="report folder or report.json")
+    ex.add_argument("dest", help="destination folder (e.g. a share for the IT administrator)")
+    ex.add_argument("--formats", default="html,pdf,csv", help="comma-separated: json,html,pdf,csv")
     vl = sub.add_parser("verify-log", help="verify an audit log hash chain")
     vl.add_argument("path")
     r = sub.add_parser("reports", help="list previous reports")
     r.add_argument("--output", help="directory to look in (default: USB reports/)")
     sub.add_parser("build-manifest", help="(release preparation) write checksums/manifest.json")
+    sub.add_parser("baselines", help="list imported security baselines")
+    st = sub.add_parser("selftest", help="check that this build contains every runtime component")
+    st.add_argument("--require-gui", action="store_true", help="fail if the Tkinter GUI is unavailable")
+    ib = sub.add_parser("import-baseline", help="validate a baseline JSON file and copy it to baselines/")
+    ib.add_argument("file")
+    ib.add_argument("--replace", action="store_true", help="overwrite an existing baseline with the same name")
     return p
 
 
 COMMANDS = {
     "gui": cmd_gui, "info": cmd_info, "modules": cmd_modules, "audit": cmd_audit,
     "preview-scan": cmd_preview_scan, "verify": cmd_verify, "verify-report": cmd_verify_report,
+    "export-report": cmd_export_report, "baselines": cmd_baselines, "import-baseline": cmd_import_baseline,
+    "selftest": cmd_selftest,
     "verify-log": cmd_verify_log, "reports": cmd_reports, "build-manifest": cmd_build_manifest,
 }
 
 
+def _safe_console() -> None:
+    """Never crash on characters the console encoding cannot show (e.g. cp1252 with redirected output)."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")  # type: ignore[union-attr]
+        except (AttributeError, ValueError):
+            pass
+
+
 def main(argv: Sequence[str] | None = None) -> int:
+    _safe_console()
     parser = build_parser()
     args = parser.parse_args(argv)
     command = args.command or "gui"

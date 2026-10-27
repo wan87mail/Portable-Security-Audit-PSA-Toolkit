@@ -8,10 +8,15 @@ to :data:`MODULE_BUILDERS`.
 from __future__ import annotations
 
 from psatoolkit.core.engine import Module
-from psatoolkit.modules import demo, system_info
+from psatoolkit.modules import (baseline_audit, demo, linux_audit, system_info, vuln_assessment,
+                                windows_audit)
 
 MODULE_BUILDERS = [
     system_info.build_module,
+    windows_audit.build_module,
+    linux_audit.build_module,
+    vuln_assessment.build_module,
+    baseline_audit.build_module,
     demo.build_module,
 ]
 

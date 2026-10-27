@@ -64,12 +64,15 @@ def report_folder(output_dir: Path, result: AssessmentResult) -> Path:
 
 
 def write_json_report(result: AssessmentResult, folder: Path, include_raw_evidence: bool = True) -> Path:
-    doc = build_document(result, include_raw_evidence)
+    return write_document(build_document(result, include_raw_evidence), folder)
+
+
+def write_document(doc: dict[str, Any], folder: Path) -> Path:
     path = folder / "report.json"
     data = (json.dumps(doc, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
     path.write_bytes(data)
     (folder / "report.json.sha256").write_text(f"{hashlib.sha256(data).hexdigest()}  report.json\n",
-                                               encoding="utf-8")
+                                               encoding="utf-8", newline="\n")
     return path
 
 

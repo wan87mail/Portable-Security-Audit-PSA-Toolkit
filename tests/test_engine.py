@@ -2,7 +2,7 @@ import time
 
 import pytest
 
-from conftest import LINUX_OS, WINDOWS_OS
+from conftest import LINUX_OS, LONG_COMMAND, LONG_COMMAND_POLICY_RULES, WINDOWS_OS
 from psatoolkit.core.authorization import AuthorizationError, TargetScope
 from psatoolkit.core.engine import AssessmentEngine, Check, Module, SkipCheck, build_host_info
 from psatoolkit.core.logging_setup import AuditLog
@@ -138,10 +138,10 @@ def test_emergency_stop_cancels_remaining_checks(config, authorization):
 
 def test_stop_interrupts_running_subprocess(config, authorization):
     stop = StopToken()
-    runner = CommandRunner(stop_token=stop, policy=ReadOnlyPolicy(rules={"sleep": lambda a: None}))
+    runner = CommandRunner(stop_token=stop, policy=ReadOnlyPolicy(rules=dict(LONG_COMMAND_POLICY_RULES)))
 
     def long_cmd(self, ctx):
-        ctx.runner.run(["sleep", "20"])
+        ctx.runner.run(LONG_COMMAND)
         return []
     import threading
     threading.Timer(0.3, stop.stop).start()

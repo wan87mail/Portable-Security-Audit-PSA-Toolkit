@@ -54,7 +54,7 @@ def test_demo_assessment_through_gui(portable_root, monkeypatch):
         assert observed == {"initially_disabled": True, "disabled_without_checkbox": True}
         assert dash.last_outcome is not None
         assert dash.last_outcome.result.mode == "demo"
-        assert dash.sev_vars["high"].get() == "2"
+        assert dash.sev_vars["high"].get() == "3" and dash.sev_vars["critical"].get() == "1"
         assert dash.info_vars["Hostname"].get() == "demo-host.example.internal"
         assert str(dash.buttons["stop"]["state"]) == "disabled"
     finally:
@@ -74,3 +74,38 @@ def test_authorization_cancel_does_not_start(portable_root, monkeypatch):
     dash.start_local()
     assert dash.worker is None
     root.destroy()
+
+
+def test_module_dialog_imports_baseline(portable_root, monkeypatch):
+    from conftest import REPO_ROOT
+    from psatoolkit.core.session import Toolkit
+    from psatoolkit.gui import app
+
+    try:
+        root = tk.Tk()
+    except tk.TclError as exc:
+        pytest.skip(f"Tk cannot start: {exc}")
+    toolkit = Toolkit(root=portable_root, elevated=False)
+    example = REPO_ROOT / "baselines" / "examples" / "example-ubuntu-server.json"
+    messages = []
+    monkeypatch.setattr(app.filedialog, "askopenfilename", lambda **k: str(example))
+    monkeypatch.setattr(app.messagebox, "showinfo", lambda *a, **k: messages.append(("info", a)))
+    monkeypatch.setattr(app.messagebox, "showerror", lambda *a, **k: messages.append(("error", a)))
+    original = app.ModuleSelectionDialog.__init__
+
+    def drive(self, parent, tk_, selected):
+        def act():
+            self._import()          # first import succeeds
+            self._import()          # second import is refused (already exists)
+            self.win.destroy()
+        parent.after(200, act)
+        original(self, parent, tk_, selected)
+
+    monkeypatch.setattr(app.ModuleSelectionDialog, "__init__", drive)
+    dash = app.Dashboard(root, toolkit)
+    names = {m.module_id for m in toolkit.available_modules()}
+    assert "baselines" in names and "baselines" in dash.selected
+    app.ModuleSelectionDialog(root, toolkit, dash.selected)
+    root.destroy()
+    assert [m[0] for m in messages] == ["info", "error"]
+    assert (portable_root / "baselines" / "Example_Ubuntu_Server_Baseline.json").exists()

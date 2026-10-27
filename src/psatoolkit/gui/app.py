@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import queue
 import shutil
+import sys
 import threading
 import tkinter as tk
 import webbrowser
@@ -21,13 +22,19 @@ from typing import Any, Callable
 from psatoolkit import TOOL_NAME, __version__
 from psatoolkit.core.authorization import (AUTHORIZATION_NOTICE, AuthorizationError, AuthorizationRecord,
                                            create_authorization)
+from psatoolkit.core.baseline import BaselineError
 from psatoolkit.core.models import Severity
 from psatoolkit.core.paths import OutputDirError
 from psatoolkit.core.privileges import elevation_help
-from psatoolkit.core.session import SessionOutcome, Toolkit
+from psatoolkit.core.session import SessionOutcome, Toolkit, import_baseline_file
 from psatoolkit.core.stop import StopToken
 from psatoolkit.core.validation import ValidationError, parse_ports, parse_target
-from psatoolkit.reporting.json_report import verify_json_report
+from psatoolkit.reporting import verify_report_folder
+
+
+def primary_file(folder: Path) -> Path:
+    html = folder / "report.html"
+    return html if html.is_file() else folder / "report.json"
 
 SEVERITY_COLOURS = {
     Severity.CRITICAL: "#7f1d1d", Severity.HIGH: "#b91c1c", Severity.MEDIUM: "#b45309",
@@ -131,9 +138,25 @@ class ModuleSelectionDialog:
                 ttk.Checkbutton(win, text=f"{module.name} - {reason}", state="disabled").pack(anchor="w", padx=18)
         buttons = ttk.Frame(win)
         buttons.pack(fill="x", **PAD)
+        ttk.Button(buttons, text="Import baseline...", command=self._import).pack(side="left", **PAD)
         ttk.Button(buttons, text="OK", command=self._ok).pack(side="right", **PAD)
         ttk.Button(buttons, text="Cancel", command=win.destroy).pack(side="right", **PAD)
+        self.toolkit = toolkit
         win.wait_window()
+
+    def _import(self) -> None:
+        """Validate a baseline file and copy it into the drive's baselines folder."""
+        chosen = filedialog.askopenfilename(parent=self.win, title="Import security baseline",
+                                            filetypes=[("PSA baseline", "*.json")])
+        if not chosen:
+            return
+        try:
+            target = import_baseline_file(self.toolkit, Path(chosen))
+        except (BaselineError, OSError, FileExistsError) as exc:
+            messagebox.showerror("Import baseline", str(exc), parent=self.win)
+            return
+        messagebox.showinfo("Import baseline", f"Imported to {target}.\n\nRebuild the drive integrity manifest so "
+                                               "the baseline is covered by 'Verify Tool Integrity'.", parent=self.win)
 
     def _ok(self) -> None:
         chosen = {k for k, v in self.vars.items() if v.get()}
@@ -246,13 +269,14 @@ class ReportsDialog:
     def _open(self) -> None:
         folder = self._selected()
         if folder:
-            webbrowser.open((folder / "report.json").as_uri())
+            webbrowser.open(primary_file(folder).as_uri())
 
     def _verify(self) -> None:
         folder = self._selected()
         if folder:
-            res = verify_json_report(folder / "report.json")
-            (messagebox.showinfo if res.ok else messagebox.showerror)("Report integrity", res.message, parent=self.win)
+            res = verify_report_folder(folder)
+            (messagebox.showinfo if res.ok else messagebox.showerror)("Report integrity", "\n".join(res.lines),
+                                                                      parent=self.win)
 
 
 # --------------------------------------------------------------------------
@@ -266,7 +290,8 @@ class Dashboard:
         self.stop_token: StopToken | None = None
         self.worker: threading.Thread | None = None
         self.last_outcome: SessionOutcome | None = None
-        self.selected = {m.module_id for m in toolkit.available_modules() if m.category == "local"}
+        self.selected = {m.module_id for m in toolkit.available_modules()
+                         if m.category in ("local", "baseline")}
         self.output_dir: Path | None = None
 
         root.title(f"{TOOL_NAME} {__version__}")
@@ -325,7 +350,7 @@ class Dashboard:
                 ("Support level", host.support_level),
                 ("Privileges", "Administrator/root" if host.elevated else "Standard user (limited checks)"),
                 ("Selected modules", ""), ("Assessment ID", "-"), ("Started", "-"), ("Completed", "-"),
-                ("Status", "Idle"))
+                ("Status", "Idle"), ("Security posture", "-"))
         for r, (label, value) in enumerate(rows):
             ttk.Label(info, text=label + ":").grid(row=r // 2, column=(r % 2) * 2, sticky="w", **PAD)
             var = tk.StringVar(value=value)
@@ -442,6 +467,7 @@ class Dashboard:
         self.progress.configure(value=0, maximum=1)
         self.info_vars["Started"].set(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         self.info_vars["Completed"].set("-")
+        self.info_vars["Security posture"].set("-")
         self.info_vars["Status"].set("Running" + (" (demo)" if demo else ""))
         self.open_btn.configure(state="disabled")
         self.stop_token = StopToken()
@@ -505,8 +531,8 @@ class Dashboard:
         (messagebox.showinfo if report.ok else messagebox.showwarning)("Tool integrity", report.summary())
 
     def open_report(self) -> None:
-        if self.last_outcome and self.last_outcome.report_files:
-            webbrowser.open(self.last_outcome.report_files[0].as_uri())
+        if self.last_outcome and self.last_outcome.report_folder:
+            webbrowser.open(primary_file(self.last_outcome.report_folder).as_uri())
 
     # -- event loop ------------------------------------------------------
     def _poll(self) -> None:
@@ -536,6 +562,12 @@ class Dashboard:
             self.last_outcome = outcome
             self.info_vars["Completed"].set(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             self.info_vars["Status"].set(outcome.result.status.capitalize())
+            posture = outcome.result.posture
+            if posture:
+                self.info_vars["Security posture"].set(
+                    f"{posture['rating']} ({posture['reason']}; coverage {posture['coverage_percent']}%)")
+                if posture.get("caveat"):
+                    self._log(posture["caveat"])
             self.current.configure(text="")
             for lim in outcome.result.limitations:
                 self._log(f"Limitation ({lim.category}): {lim.description}")
@@ -559,12 +591,32 @@ class Dashboard:
         self.root.destroy()
 
 
+def _release_own_console() -> None:
+    """Hide the console window when the frozen .exe was double-clicked (not when run from cmd).
+
+    GetConsoleProcessList returns 1 when this process is the only one attached,
+    i.e. Windows created the console just for us.
+    """
+    if not (sys.platform.startswith("win") and getattr(sys, "frozen", False)):
+        return
+    try:
+        import ctypes
+
+        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        pids = (ctypes.c_uint * 4)()
+        if kernel32.GetConsoleProcessList(pids, 4) == 1:
+            kernel32.FreeConsole()
+    except Exception:
+        pass
+
+
 def run_gui(toolkit: Toolkit) -> int:
     try:
         root = tk.Tk()
     except tk.TclError as exc:
         print(f"Cannot open a display ({exc}). Use the CLI instead: 'audit --help'.")
         return 1
+    _release_own_console()
     Dashboard(root, toolkit)
     root.mainloop()
     return 0

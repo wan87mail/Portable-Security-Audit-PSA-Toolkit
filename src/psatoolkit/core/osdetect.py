@@ -6,6 +6,7 @@ arguments, so they can be unit-tested with mock data on any platform.
 
 from __future__ import annotations
 
+import os
 import platform
 import socket
 import sys
@@ -52,7 +53,7 @@ def normalize_arch(machine: str) -> str:
 
 
 def classify_windows(release: str, version: str, edition: str, machine: str) -> OSInfo:
-    """Classify Windows from ``platform.win32_ver()`` / ``win32_edition()`` values.
+    """Classify Windows from the version string (``major.minor.build``) and ``win32_edition()``.
 
     ``version`` looks like ``10.0.22631``. ``platform.release()`` reports "10"
     on Windows 11 for older Pythons, so the build number is authoritative.
@@ -150,16 +151,36 @@ def _linux_has_desktop() -> bool:
     return any(Path(p).exists() for p in ("/usr/share/xsessions", "/usr/share/wayland-sessions"))
 
 
+def windows_version_info(winver) -> tuple[str, str, bool]:
+    """(release, "major.minor.build", is_server) from ``sys.getwindowsversion()``, without starting processes.
+
+    ``platform_version`` is the real kernel version even under compatibility shims.
+    """
+    major, minor, build = (tuple(getattr(winver, "platform_version", None) or ()) or tuple(winver[:3]))[:3]
+    release = {(10, 0): "10", (6, 3): "8.1", (6, 2): "8", (6, 1): "7"}.get((major, minor), f"{major}.{minor}")
+    # product_type: 1 = workstation, 2 = domain controller, 3 = server
+    return release, f"{major}.{minor}.{build}", getattr(winver, "product_type", 1) in (2, 3)
+
+
+def windows_machine(environ) -> str:
+    """CPU architecture from the environment (what ``platform.machine()`` uses on Windows)."""
+    return environ.get("PROCESSOR_ARCHITEW6432", "") or environ.get("PROCESSOR_ARCHITECTURE", "")
+
+
 def detect_os(os_release_path: str = "/etc/os-release") -> OSInfo:
     """Detect the operating system this process is running on."""
-    machine = platform.machine()
     if sys.platform.startswith("win"):
-        release, version, _csd, _ptype = platform.win32_ver()
+        # Not platform.win32_ver()/machine()/uname(): on Python 3.10 they start
+        # ``cmd /c ver`` through a shell, outside the read-only command policy.
+        release, version, is_server = windows_version_info(sys.getwindowsversion())  # type: ignore[attr-defined]
         try:
-            edition = platform.win32_edition() or ""
+            edition = platform.win32_edition() or ""   # registry read only
         except Exception:  # pragma: no cover - very old Python builds
             edition = ""
-        return classify_windows(release, version, edition, machine)
+        if is_server and "server" not in edition.lower():
+            edition = f"Server {edition}".strip()
+        return classify_windows(release, version, edition, windows_machine(os.environ))
+    machine = platform.machine()
     if sys.platform.startswith("linux"):
         try:
             text = Path(os_release_path).read_text(encoding="utf-8", errors="replace")

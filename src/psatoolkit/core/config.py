@@ -52,8 +52,20 @@ class NetworkConfig:
 
 @dataclass
 class ReportingConfig:
-    formats: list[str] = field(default_factory=lambda: ["json"])
+    formats: list[str] = field(default_factory=lambda: ["json", "html", "pdf", "csv"])
     include_raw_evidence: bool = True
+
+
+@dataclass
+class VulnDataConfig:
+    directory: str = ""            # empty = <USB root>/vulndata
+    max_age_days: int = 30
+
+
+@dataclass
+class BaselineConfig:
+    directory: str = ""            # empty = <USB root>/baselines
+    enabled: list[str] = field(default_factory=list)   # baseline names; empty = all applicable
 
 
 @dataclass
@@ -64,6 +76,8 @@ class AppConfig:
     execution: ExecutionConfig = field(default_factory=ExecutionConfig)
     network: NetworkConfig = field(default_factory=NetworkConfig)
     reporting: ReportingConfig = field(default_factory=ReportingConfig)
+    vulndata: VulnDataConfig = field(default_factory=VulnDataConfig)
+    baselines: BaselineConfig = field(default_factory=BaselineConfig)
     warnings: list[str] = field(default_factory=list)
     sources: list[str] = field(default_factory=list)
 
@@ -211,15 +225,27 @@ def build_config(data: dict[str, Any]) -> AppConfig:
     except ValidationError as exc:
         b.warnings.append(f"[network].default_ports invalid ({exc}); using {n.default_ports}")
 
-    formats = data.get("reporting", {}).get("formats", ["json"])
+    default_formats = list(ReportingConfig().formats)
+    formats = data.get("reporting", {}).get("formats", default_formats)
     if not isinstance(formats, list) or not formats:
-        b.warnings.append("[reporting].formats must be a non-empty list; using ['json']")
-        formats = ["json"]
+        b.warnings.append(f"[reporting].formats must be a non-empty list; using {default_formats}")
+        formats = default_formats
     valid = [f.lower() for f in formats if isinstance(f, str) and f.lower() in SUPPORTED_REPORT_FORMATS]
     if len(valid) != len(formats):
         b.warnings.append(f"[reporting].formats: unsupported entries ignored (supported: {SUPPORTED_REPORT_FORMATS})")
-    cfg.reporting.formats = valid or ["json"]
+    cfg.reporting.formats = valid or default_formats
     cfg.reporting.include_raw_evidence = b.get("reporting", "include_raw_evidence", True, bool)
+
+    cfg.vulndata.directory = b.get("vulnerability_data", "directory", "", str)
+    cfg.vulndata.max_age_days = b.clamp("vulnerability_data", "max_age_days",
+                                        b.get("vulnerability_data", "max_age_days", 30, int), 1, 3650)
+
+    cfg.baselines.directory = b.get("baselines", "directory", "", str)
+    enabled = data.get("baselines", {}).get("enabled", [])
+    if not isinstance(enabled, list) or not all(isinstance(x, str) for x in enabled):
+        b.warnings.append("[baselines].enabled must be a list of baseline names; using all applicable")
+        enabled = []
+    cfg.baselines.enabled = enabled
 
     cfg.warnings = b.warnings
     return cfg

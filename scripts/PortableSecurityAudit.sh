@@ -10,10 +10,18 @@ set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# 1) Frozen Linux build on the USB drive (built in Phase 8), if present.
-if [[ -x "$DIR/linux/PortableSecurityAudit" ]]; then
-    exec "$DIR/linux/PortableSecurityAudit" "$@"
-fi
+# 1) Frozen Linux build on the drive (packaging/build_linux.sh), if present:
+#    one-folder build in linux/PortableSecurityAudit/, or a single-file binary in linux/.
+for BIN in "$DIR/linux/PortableSecurityAudit/PortableSecurityAudit" "$DIR/linux/PortableSecurityAudit"; do
+    if [[ -f "$BIN" && -x "$BIN" ]]; then
+        # Binaries cannot run from a noexec mount; use the source edition instead.
+        if command -v findmnt >/dev/null 2>&1 && findmnt -no OPTIONS -T "$BIN" 2>/dev/null | grep -qw noexec; then
+            echo "Note: drive is mounted noexec; using the source edition." >&2
+            break
+        fi
+        exec "$BIN" "$@"
+    fi
+done
 
 # 2) Source edition: USB layout (app/) or repository layout (../src).
 if [[ -d "$DIR/app/psatoolkit" ]]; then

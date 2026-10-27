@@ -15,3 +15,7 @@ logs/*
 !logs/.gitkeep
 config/local.toml
 checksums/manifest.json
+
+# Build outputs (packaging/)
+.build-venv/
+packaging/version_info.txt

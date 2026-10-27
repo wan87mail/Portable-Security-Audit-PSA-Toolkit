@@ -1,4 +1,4 @@
-# Operator guide (Phase 2 edition)
+# Operator guide (Phase 3 edition)
 
 This guide covers the features delivered so far. It is expanded into the full
 IT administrator manual in Phase 10.
@@ -62,7 +62,16 @@ logs/audit-PSA-20261024-091500-AB12CD.jsonl                    hash-chained audi
 logs/psa-YYYYMMDD.log                                          application log
 ```
 
-Verify them later with `verify-report <path>` and `verify-log <path>`.
+Open `report.html` first. Give `report.pdf` to management or the audit file,
+and import `findings.csv` into your ticketing or tracking spreadsheet.
+
+Verify them later with `verify-report <report folder>` and `verify-log <path>`.
+To hand a report to someone, use **Export Report** (GUI) or
+`export-report <report folder> <destination>`. Both check the report's
+integrity first and refuse to export a modified report.
+
+The CSV is safe to open in Excel: cells that would start a formula are
+prefixed with an apostrophe.
 
 If the drive is read-only, both reports and logs go to the folder you choose.
 
@@ -71,6 +80,63 @@ If the drive is read-only, both reports and logs go to the folder you choose.
 Checks that need Administrator/root are listed by `info` and in the report's
 limitations, together with the reason. Run elevated only when the
 authorization covers it. The tool never elevates itself.
+
+| Without elevation you lose | |
+|---|---|
+| Windows | BitLocker status, audit policy, and `Get-SmbServerConfiguration` (SMBv1 may become *inconclusive*) |
+| Linux | sudoers review, `/etc/shadow` flags, `sshd -T`, firewall rule sets, process names of other users' sockets, root-only directories in file sweeps |
+
+See [CHECKS.md](CHECKS.md) for every check.
+
+## How long it takes
+
+A local audit usually takes 10–60 seconds. On Linux, the world-writable and
+SUID sweeps read every file under `/usr`, `/etc`, `/opt` and similar
+directories, which can take several minutes on large servers the first time
+(cold disk cache). Each check has its own time budget; a check that runs out
+of time is reported as a limitation and the assessment continues.
+
+## Security baselines
+
+To compare systems with your organisation's required settings, import a
+baseline file once per drive: `import-baseline <file>`, or in the GUI use
+**Select Assessment Modules → Import baseline…**. Then rebuild the integrity
+manifest. Each rule that is not met is reported with the severity your
+baseline assigns; rules that could not be checked are listed under
+Limitations. See [BASELINES.md](BASELINES.md) to write your own.
+
+## Vulnerability data
+
+Module E needs an offline snapshot in `vulndata/` on the drive. Build it on an
+admin workstation before each engagement, as described in [VULNDATA.md](VULNDATA.md).
+Without a snapshot, the check is skipped and the report says why.
+
+## Security posture and priorities
+
+| Rating | Meaning |
+|---|---|
+| Critical risk | At least one confirmed Critical finding |
+| High risk | A potential Critical, or three or more confirmed High findings |
+| Elevated risk | At least one High finding |
+| Moderate risk | Medium findings only |
+| Low risk | No Critical, High or Medium findings |
+
+If fewer than 75% of applicable checks completed (e.g. without
+administrator rights), the rating carries a warning that the real posture may
+be worse.
+
+Each finding's **priority** places it on the remediation roadmap: *immediate*
+(Critical, or confirmed High with high confidence), *short-term* (other High),
+*planned* (Medium/Low), *monitoring* (Informational).
+
+## Reading the results
+
+- **confirmed:** the setting was observed directly.
+- **potential:** indirect evidence (e.g. a service that *may* be unneeded,
+  an install date suggesting missed patches); *manual validation required*.
+- **inconclusive:** the tool could not decide; follow the verification step.
+- A **passed** check shows what was verified in its message, e.g. "All 3
+  firewall profiles are enabled with default-deny inbound".
 
 ## Troubleshooting
 

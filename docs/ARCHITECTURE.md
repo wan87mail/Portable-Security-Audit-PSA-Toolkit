@@ -35,18 +35,19 @@
       │ modules/*      │ │ core/safe_exec │ │ core/authorization │
       │ (checks)       │ │ allow-list,    │ │ notice, operator   │
       │ system_info    │ │ no shell,      │ │ confirmation,      │
-      │ windows_audit* │ │ timeouts,      │ │ remote scope       │
-      │ linux_audit*   │ │ output caps    │ └────────────────────┘
-      │ network*       │ └────────────────┘
-      │ vuln*/baseline*│
+      │ windows_audit  │ │ timeouts,      │ │ remote scope       │
+      │ linux_audit    │ │ output caps    │ └────────────────────┘
+      │ (network: n/a) │ └────────────────┘
+      │ vuln, baseline*│
       │ demo           │
       └──────┬─────────┘
              │ Finding / CheckResult (core/models.py)
       ┌──────▼──────────────────────┐   ┌──────────────────────────┐
-      │ normalization* / scoring*   │──▶│ reporting/ (JSON now;    │
-      └─────────────────────────────┘   │ HTML/PDF/CSV in Phase 6) │
+      │ normalization / scoring     │──▶│ reporting/ JSON, HTML,   │
+      └─────────────────────────────┘   │ PDF, CSV + SHA256SUMS    │
                                         └──────────────────────────┘
-  Cross-cutting: core/config.py, core/paths.py, core/logging_setup.py,
+  Scoring: core/normalize.py, core/scoring.py, core/cvss.py, core/versions.py, core/vulndb.py
+  Cross-cutting: core/hostfs.py (read-only filesystem view), core/config.py, core/paths.py, core/logging_setup.py,
                  core/redaction.py, core/integrity.py, core/tempfiles.py,
                  core/osdetect.py, core/privileges.py
   (* = later phase)

@@ -30,8 +30,18 @@ rate_limit_per_second = 50         # connection attempts per second, 1 - 200
 require_dry_run_preview = true     # show the scan plan before any traffic is sent
 
 [reporting]
-formats = ["json"]                 # Phase 6 adds "html", "pdf", "csv"
+formats = ["json", "html", "pdf", "csv"]   # JSON is always written
 include_raw_evidence = true        # evidence is always redacted
+
+[vulnerability_data]
+# Offline vulnerability snapshot used by Module E (see docs/VULNDATA.md).
+directory = ""                     # empty = <USB root>/vulndata
+max_age_days = 30                  # older snapshots are flagged as a limitation
+
+[baselines]
+# Module F compares the system with imported baselines (see docs/BASELINES.md).
+directory = ""                     # empty = <USB root>/baselines
+enabled = []                       # baseline names to use; empty = every applicable baseline
 
 [logging]
 level = "INFO"                     # DEBUG, INFO, WARNING, ERROR

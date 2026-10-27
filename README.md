@@ -15,7 +15,20 @@ and servers you are **authorized** to assess.
 |---|---|
 | **Supported targets** | Windows 10 / 11, Windows Server 2019 / 2022 / 2025, Ubuntu 22.04 / 24.04, other Linux distributions (best-effort) |
 | **Requirements** | Python 3.10 or newer (standard library only, no `pip install` needed to run it). Tkinter is optional, for the GUI. |
-| **Current status** | Phases 1–2 of 10 complete. See [Project status](#project-status). |
+| **Current status** | Phases 1–3 and 5–8 of 10 complete: 39 read-only checks, risk scoring, offline vulnerability matching, organisational baselines, HTML/PDF/CSV reports, standalone builds. See [Project status](#project-status). |
+
+## What it checks
+
+| Module | Checks |
+|---|---|
+| **A. System information** | Asset identity, OS support, interfaces and connections, listening ports, risky exposed services (Telnet, FTP, SNMP, Redis, Docker API...), installed software |
+| **B. Windows** | Firewall profiles, Defender/AV, SMBv1 and signing, RDP/NLA, UAC, password and lockout policy, Guest/local accounts, local admins, patch recency, BitLocker, risky services and unquoted paths, writable service binaries, WDigest/NTLM/LSA/LLMNR, legacy TLS, certificates, audit policy |
+| **E. Vulnerabilities** | Installed packages compared with an offline, integrity-checked advisory snapshot (CVE, CVSS, fixed versions); see [docs/VULNDATA.md](docs/VULNDATA.md) |
+| **F. Baselines** | Your organisation's own required settings (JSON baseline files) compared with the system; deviations become findings. See [docs/BASELINES.md](docs/BASELINES.md) |
+| **C. Linux** | Pending security updates, SSH configuration, host firewall, UID-0 and privileged groups, sudo rules, empty/weak password hashes, PAM password and lockout policy, world-writable files, sensitive file permissions, SUID/SGID binaries, legacy services, disk encryption, AppArmor/SELinux, kernel sysctl hardening, service certificates |
+
+The full list, including which checks need Administrator/root and why, is in
+[docs/CHECKS.md](docs/CHECKS.md).
 
 ---
 
@@ -94,9 +107,10 @@ python -m pytest
 PortableSecurityAudit audit --demo
 ```
 
-> **Note:** a standalone `PortableSecurityAudit.exe`, which runs on target
-> PCs *without* Python, will be built with PyInstaller in Phase 8. Until then,
-> the Windows target needs Python 3.10+ installed.
+> **No Python on the target?** Use the standalone `PortableSecurityAudit.exe`.
+> Download it from the repository's **Actions** tab (artifact
+> *PortableSecurityAudit-usb* contains a complete drive), or build it yourself with
+> `packaging\build_windows.ps1`. See [docs/BUILD.md](docs/BUILD.md).
 
 ---
 
@@ -134,13 +148,24 @@ python -m pytest
 Do this on a **trusted** admin machine.
 
 1. **Format** the drive (exFAT works on both Windows and Linux) and name it, for example, `PSA`.
-2. **Copy** the project folder to the drive, for example `E:\PortableSecurityAudit\`.
+2. **Assemble the drive** with `scripts/prepare_usb.py`. It copies the Windows `.exe`, the Linux build, the
+   source edition, docs, baselines and vulnerability data, and writes the integrity manifest
+   (see [docs/BUILD.md](docs/BUILD.md)):
+
+   ```bat
+   py scripts\prepare_usb.py E:\PortableSecurityAudit --windows-build dist\windows\PortableSecurityAudit
+   ```
+
+   Alternatively, copy the project folder to the drive (source edition only, which needs Python on targets).
 3. **Create the integrity manifest.** This must be the last step, after all files are copied:
 
    ```bat
    cd /d E:\PortableSecurityAudit
    scripts\PortableSecurityAudit.bat build-manifest
    ```
+
+   If you use Module E, first copy a vulnerability snapshot to `vulndata/`
+   ([docs/VULNDATA.md](docs/VULNDATA.md)), because the manifest must cover it.
 
    It prints a line like `Manifest SHA-256: 3f9a…`. **Record this value** in
    your change ticket or release notes, kept somewhere other than the USB drive.
@@ -199,8 +224,12 @@ PSA audit --demo              # safe demonstration with sample findings
 PSA audit                     # real local audit; prompts for name, reference and "I AM AUTHORIZED"
 PSA audit --output D:\reports # save reports elsewhere (for a read-only USB drive)
 PSA reports                   # list previous reports
+PSA baselines                 # list imported security baselines
+PSA import-baseline FILE      # validate a baseline and copy it to baselines/
 PSA verify                    # verify tool integrity
-PSA verify-report <report.json>   # verify a report has not been altered
+PSA selftest                  # check this build contains every component
+PSA verify-report <report folder> # verify no report file has been altered
+PSA export-report <report folder> <dest> --formats html,pdf,csv   # copy/re-render for the IT administrator
 PSA verify-log <audit.jsonl>      # verify the audit log hash chain
 PSA preview-scan --target 10.0.5.0/28 --ports 22,443   # dry run; sends NO traffic
 ```
@@ -231,13 +260,17 @@ Each assessment creates its own folder:
 
 ```
 reports/PSA-20261024-091500-AB12CD_<hostname>/
-    report.json            findings, evidence, limitations, authorization details
-    report.json.sha256     file hash (sha256sum format)
+    report.html            readable report: executive summary, roadmap, findings (open this first)
+    report.pdf             the same report for management and audit files
+    findings.csv           one row per finding, with owner / due date / ticket columns for tracking
+    report.json            complete machine-readable results (all other formats are built from it)
+    report.json.sha256     hash of report.json
+    SHA256SUMS             hashes of every file above (sha256sum -c compatible)
 logs/audit-PSA-20261024-091500-AB12CD.jsonl   hash-chained audit trail of the run
 logs/psa-YYYYMMDD.log                         application log
 ```
 
-A complete sample is in [`docs/examples/demo-report/`](docs/examples/demo-report/).
+A complete sample (HTML, PDF, CSV, JSON) is in [`docs/examples/demo-report/`](docs/examples/demo-report/), with its audit log in [`docs/examples/demo-audit-log.jsonl`](docs/examples/demo-audit-log.jsonl).
 
 Every finding contains:
 
@@ -246,6 +279,12 @@ Every finding contains:
 - **Confidence**, affected host and component, description, **evidence**, impact
 - **References:** CVE (with CVSS score, version and source), CWE, or baseline item
 - **Remediation**, verification steps, and whether manual validation is required
+
+Every finding also gets a **risk score** (0–10, used to rank work: severity ×
+certainty) and a **priority**: *immediate*, *short-term*, *planned* or
+*monitoring*. The report starts with an overall **security posture** rating
+(Critical / High / Elevated / Moderate / Low risk) that explains its reason
+and the check coverage it is based on.
 
 The **limitations** section lists every check that was skipped (missing
 privileges, missing tool, no authorized target), failed or timed out, so that
@@ -284,7 +323,7 @@ and a warning is logged.
 
 ```bash
 python -m pip install pytest
-python -m pytest                                        # 200+ tests, mocked; no system changes
+python -m pytest                                        # 450+ tests, mocked; no system changes
 xvfb-run -a python -m pytest tests/test_gui_smoke.py    # GUI test on Linux (needs python3-tk)
 ```
 
@@ -321,18 +360,22 @@ PortableSecurityAudit/
 │   ├── core/                    engine, authorization, safe command runner, validation,
 │   │                            OS detection, config, logging, integrity, redaction
 │   ├── modules/                 assessment modules (system_info, demo; more in later phases)
-│   └── reporting/               report writers (JSON now; HTML/PDF/CSV in Phase 6)
+│   └── reporting/               report writers (JSON, HTML, PDF, CSV) and report integrity
 ├── tests/                       automated tests
 ├── docs/                        architecture, user guide, developer guide, phases, examples
-├── baselines/  tools/  vulndata/   reserved for later phases
+├── vulndata/                    offline vulnerability snapshot for Module E (you build it; see docs/VULNDATA.md)
+├── baselines/                   imported organisational baselines (+ examples/); see docs/BASELINES.md
+├── tools/                       reserved for optional tools
 ├── reports/  logs/              created at run time (not stored in Git)
 └── checksums/                   integrity manifest (created when preparing the drive)
 ```
 
 More detail:
 [Architecture](docs/ARCHITECTURE.md) ·
+[Check catalogue](docs/CHECKS.md) ·
 [User guide](docs/USER_GUIDE.md) ·
 [Developer guide](docs/DEVELOPMENT.md) ·
+[Build & deployment](docs/BUILD.md) ·
 [Licences](LICENSES.md)
 
 ---
@@ -343,13 +386,14 @@ More detail:
 |---|---|---|
 | 1 | Architecture and project structure | ✅ Done |
 | 2 | Portable shell, authorization, engine, GUI and CLI, JSON report, integrity, demo mode | ✅ Done |
-| 3 | Windows and Linux read-only security checks | ⏳ Planned |
-| 4 | Controlled network assessment | ⏳ Planned |
-| 5 | Risk scoring and vulnerability data (CVE/CVSS) | ⏳ Planned |
-| 6 | HTML, PDF and CSV reports | ⏳ Planned |
-| 7 | Security baselines and expanded demo | ⏳ Planned |
-| 8 | Standalone Windows `.exe` and Linux build | ⏳ Planned |
+| 3 | Windows and Linux read-only security checks | ✅ Done |
+| 4 | Controlled network assessment | Not included in this build |
+| 5 | Risk scoring and vulnerability data (CVE/CVSS) | ✅ Done |
+| 6 | HTML, PDF and CSV reports | ✅ Done |
+| 7 | Security baselines and expanded demo | ✅ Done |
+| 8 | Standalone Windows `.exe` and Linux build | ✅ Done |
 | 9–10 | Security review, final documentation, release checklist | ⏳ Planned |
 
-At this stage the live checks identify the system and its OS support status.
-The Windows and Linux security audit checks are added in Phase 3. Details are in [docs/PHASES.md](docs/PHASES.md).
+The Windows checks have been tested against mocked PowerShell output, not yet
+on a real Windows host. Run [docs/TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md)
+before field use. Details are in [docs/PHASES.md](docs/PHASES.md).

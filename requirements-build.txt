@@ -1,0 +1,5 @@
+# Build-only dependencies (never shipped as Python packages on the USB drive).
+# PyInstaller is GPL-2.0 with a bootloader exception: the built executable may
+# be distributed under the toolkit's own licence. Pinned for reproducible builds.
+pyinstaller==6.19.0
+pytest>=8,<10
