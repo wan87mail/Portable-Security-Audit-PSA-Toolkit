@@ -125,6 +125,7 @@ Repository (development):
 ```
 Claude-project-1/
 ├── README.md                 Quick start
+├── CHANGELOG.md, SECURITY.md Version history; vulnerability reporting policy
 ├── LICENSES.md               Licence of the toolkit and of every dependency
 ├── pyproject.toml            Package metadata, pytest config
 ├── requirements-dev.txt      Dev/test/build dependencies (not needed at runtime)
@@ -135,8 +136,10 @@ Claude-project-1/
 ├── docs/
 │   ├── ARCHITECTURE.md       This document
 │   ├── DEVELOPMENT.md        Developer setup, adding checks
-│   ├── PHASES.md             Phase plan and current status
-│   └── USER_GUIDE.md         Operator guide (expanded in Phase 10)
+│   ├── PHASES.md             Phase history and current known limitations
+│   ├── RELEASE_CHECKLIST.md  Release and per-engagement checklists
+│   ├── SECURITY_REVIEW.md    Threat model, findings, residual risks, dependencies
+│   └── USER_GUIDE.md         IT administrator manual
 ├── scripts/
 │   ├── PortableSecurityAudit.sh   Linux manual launcher
 │   ├── PortableSecurityAudit.bat  Windows manual launcher (source build)

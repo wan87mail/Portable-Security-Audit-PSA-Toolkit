@@ -429,8 +429,9 @@ class Dashboard:
         modules = self.tk.network_modules()
         if not modules:
             messagebox.showinfo("Network assessment",
-                                "No network assessment module is installed in this build "
-                                "(Module D is delivered in Phase 4). Configured targets are kept.")
+                                "This build includes no network assessment module, so remote targets "
+                                "are not contacted. Configured targets are kept and recorded in the report "
+                                "scope.")
             return
         if not self.tk.scope.targets:
             messagebox.showwarning("Network assessment", "Configure at least one authorized remote target first.")
