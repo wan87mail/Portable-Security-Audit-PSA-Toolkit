@@ -15,7 +15,7 @@ and servers you are **authorized** to assess.
 |---|---|
 | **Supported targets** | Windows 10 / 11, Windows Server 2019 / 2022 / 2025, Ubuntu 22.04 / 24.04, other Linux distributions (best-effort) |
 | **Requirements** | Python 3.10 or newer (standard library only, no `pip install` needed to run it). Tkinter is optional, for the GUI. |
-| **Current status** | Phases 1–3 and 5–7 of 10 complete: 39 read-only checks, risk scoring, offline vulnerability matching, organisational baselines, HTML/PDF/CSV reports. See [Project status](#project-status). |
+| **Current status** | Phases 1–3 and 5–8 of 10 complete: 39 read-only checks, risk scoring, offline vulnerability matching, organisational baselines, HTML/PDF/CSV reports, standalone builds. See [Project status](#project-status). |
 
 ## What it checks
 
@@ -107,9 +107,10 @@ python -m pytest
 PortableSecurityAudit audit --demo
 ```
 
-> **Note:** a standalone `PortableSecurityAudit.exe`, which runs on target
-> PCs *without* Python, will be built with PyInstaller in Phase 8. Until then,
-> the Windows target needs Python 3.10+ installed.
+> **No Python on the target?** Use the standalone `PortableSecurityAudit.exe`.
+> Download it from the repository's **Actions** tab (artifact
+> *PortableSecurityAudit-usb* contains a complete drive), or build it yourself with
+> `packaging\build_windows.ps1`. See [docs/BUILD.md](docs/BUILD.md).
 
 ---
 
@@ -147,7 +148,15 @@ python -m pytest
 Do this on a **trusted** admin machine.
 
 1. **Format** the drive (exFAT works on both Windows and Linux) and name it, for example, `PSA`.
-2. **Copy** the project folder to the drive, for example `E:\PortableSecurityAudit\`.
+2. **Assemble the drive** with `scripts/prepare_usb.py`. It copies the Windows `.exe`, the Linux build, the
+   source edition, docs, baselines and vulnerability data, and writes the integrity manifest
+   (see [docs/BUILD.md](docs/BUILD.md)):
+
+   ```bat
+   py scripts\prepare_usb.py E:\PortableSecurityAudit --windows-build dist\windows\PortableSecurityAudit
+   ```
+
+   Alternatively, copy the project folder to the drive (source edition only, which needs Python on targets).
 3. **Create the integrity manifest.** This must be the last step, after all files are copied:
 
    ```bat
@@ -218,6 +227,7 @@ PSA reports                   # list previous reports
 PSA baselines                 # list imported security baselines
 PSA import-baseline FILE      # validate a baseline and copy it to baselines/
 PSA verify                    # verify tool integrity
+PSA selftest                  # check this build contains every component
 PSA verify-report <report folder> # verify no report file has been altered
 PSA export-report <report folder> <dest> --formats html,pdf,csv   # copy/re-render for the IT administrator
 PSA verify-log <audit.jsonl>      # verify the audit log hash chain
@@ -365,6 +375,7 @@ More detail:
 [Check catalogue](docs/CHECKS.md) ·
 [User guide](docs/USER_GUIDE.md) ·
 [Developer guide](docs/DEVELOPMENT.md) ·
+[Build & deployment](docs/BUILD.md) ·
 [Licences](LICENSES.md)
 
 ---
@@ -380,7 +391,7 @@ More detail:
 | 5 | Risk scoring and vulnerability data (CVE/CVSS) | ✅ Done |
 | 6 | HTML, PDF and CSV reports | ✅ Done |
 | 7 | Security baselines and expanded demo | ✅ Done |
-| 8 | Standalone Windows `.exe` and Linux build | ⏳ Planned |
+| 8 | Standalone Windows `.exe` and Linux build | ✅ Done |
 | 9–10 | Security review, final documentation, release checklist | ⏳ Planned |
 
 The Windows checks have been tested against mocked PowerShell output, not yet

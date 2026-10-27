@@ -371,6 +371,7 @@ def test_certificate_files_check():
 
 # -- real HostFS -----------------------------------------------------------------------------------
 
+@pytest.mark.skipif(__import__("sys").platform.startswith("win"), reason="symlinks need Developer Mode on Windows")
 def test_hostfs_rooted_walk_does_not_follow_symlinks(tmp_path):
     (tmp_path / "etc").mkdir()
     (tmp_path / "etc" / "a.conf").write_text("x=1")

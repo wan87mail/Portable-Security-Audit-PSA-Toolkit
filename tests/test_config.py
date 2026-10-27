@@ -59,3 +59,14 @@ def test_python310_fallback_parser_matches_tomllib():
     assert parse_simple_toml('a = "x # not a comment" # real comment\n') == {"a": "x # not a comment"}
     with pytest.raises(ValueError):
         parse_simple_toml("x = __import__('os')")
+
+
+def test_defaults_without_any_config_file(tmp_path):
+    """A drive without config/default.toml must behave exactly like the shipped defaults."""
+    shipped = load_config(REPO_ROOT / "config")
+    bare = build_config({})
+    assert bare.reporting.formats == shipped.reporting.formats == ["json", "html", "pdf", "csv"]
+    assert bare.offline_mode is shipped.offline_mode is True
+    assert bare.network.max_hosts_per_target == shipped.network.max_hosts_per_target
+    assert bare.vulndata.max_age_days == shipped.vulndata.max_age_days
+    assert load_config(tmp_path).reporting.formats == shipped.reporting.formats

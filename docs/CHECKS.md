@@ -1,6 +1,6 @@
 # Check catalogue
 
-Generated from the code by `scripts/gen_checks_doc.py` (toolkit 0.7.0). Do not edit by hand.
+Generated from the code by `scripts/gen_checks_doc.py` (toolkit 0.8.0). Do not edit by hand.
 
 All checks are read-only. **Admin** means the check is skipped without Administrator/root and the reason is listed in the report's limitations. Checks marked *partial* run without elevation but record reduced coverage.
 

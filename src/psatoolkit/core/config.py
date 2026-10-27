@@ -225,14 +225,15 @@ def build_config(data: dict[str, Any]) -> AppConfig:
     except ValidationError as exc:
         b.warnings.append(f"[network].default_ports invalid ({exc}); using {n.default_ports}")
 
-    formats = data.get("reporting", {}).get("formats", ["json"])
+    default_formats = list(ReportingConfig().formats)
+    formats = data.get("reporting", {}).get("formats", default_formats)
     if not isinstance(formats, list) or not formats:
-        b.warnings.append("[reporting].formats must be a non-empty list; using ['json']")
-        formats = ["json"]
+        b.warnings.append(f"[reporting].formats must be a non-empty list; using {default_formats}")
+        formats = default_formats
     valid = [f.lower() for f in formats if isinstance(f, str) and f.lower() in SUPPORTED_REPORT_FORMATS]
     if len(valid) != len(formats):
         b.warnings.append(f"[reporting].formats: unsupported entries ignored (supported: {SUPPORTED_REPORT_FORMATS})")
-    cfg.reporting.formats = valid or ["json"]
+    cfg.reporting.formats = valid or default_formats
     cfg.reporting.include_raw_evidence = b.get("reporting", "include_raw_evidence", True, bool)
 
     cfg.vulndata.directory = b.get("vulnerability_data", "directory", "", str)

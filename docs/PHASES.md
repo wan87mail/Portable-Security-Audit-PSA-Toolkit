@@ -9,7 +9,7 @@
 | 5 | Finding normalisation, risk scoring, Module E vulnerability data (offline CVE/CVSS snapshots) | **Done** |
 | 6 | HTML, PDF, CSV reports; executive summary; remediation roadmap | **Done** |
 | 7 | Module F baselines and custom baseline import; expanded demo and test checklists | **Done** |
-| 8 | PyInstaller Windows `.exe`, Linux frozen build, USB preparation scripts | Planned |
+| 8 | PyInstaller Windows `.exe`, Linux frozen build, USB preparation scripts | **Done** |
 | 9 | Security, dependency and usability review | Planned |
 | 10 | Final documentation and release checklist | Planned |
 
@@ -117,6 +117,40 @@ Verified on this Ubuntu 24.04 host: the example baseline reported real
 deviations (umask 022, crontab mode 0644, symlink protection off,
 unattended-upgrades missing, ufw not enabled), with SSH and AppArmor rules
 correctly *inconclusive* (no SSH server; systemd not running in the container).
+
+## Phase 8 deliverables
+
+| File | Purpose |
+|---|---|
+| `packaging/psa.spec`, `packaging/psa_entry.py` | PyInstaller spec: one-folder build (default) or one-file, no UPX, never requests elevation |
+| `packaging/build_windows.ps1` | Windows build: isolated venv, tests, version resource, optional Authenticode signing, smoke test |
+| `packaging/build_linux.sh` | Linux build with the same steps |
+| `packaging/make_version_info.py` | Windows file-version resource from `psatoolkit.__version__` |
+| `requirements-build.txt` | Pinned build dependencies (PyInstaller 6.19.0) |
+| `scripts/prepare_usb.py` | Assembles and updates the drive; validates inputs first; writes the integrity manifest |
+| `.github/workflows/build.yml` | Tests on Ubuntu 22.04/24.04 and Windows Server 2022/2025, builds both editions, assembles a drive |
+| `docs/BUILD.md` | Build, sign, prepare, update, verify and troubleshoot |
+
+Runtime additions: frozen builds locate the drive root from the executable
+position (environment variables are ignored), the GUI hides a console window
+it owns, the CLI no longer crashes on characters the console cannot encode,
+and a new `selftest [--require-gui]` command checks a build's components.
+
+Verified here: the Linux build ran its smoke test, and on an assembled drive
+the frozen binary found the drive root two levels up, wrote reports to the
+drive and passed `verify`. The `selftest` command revealed (and this phase
+fixed) a configuration default that would have produced JSON-only reports on
+a drive without `config/default.toml`.
+
+## Known limitations after Phase 8
+
+- The Windows `.exe` can only be built on Windows. It is built and
+  self-tested in CI; there is no local Windows build log in this repository.
+- CI builds are unsigned; sign before production use.
+- GitHub Actions are pinned to major versions (e.g. `actions/checkout@v4`);
+  pin them to commit SHAs if your supply-chain policy requires it.
+- The Linux GUI bundle could not be verified in this development container
+  (its Python embeds Tcl/Tk 9); CI verifies it with `selftest --require-gui`.
 
 ## Known limitations after Phase 7
 

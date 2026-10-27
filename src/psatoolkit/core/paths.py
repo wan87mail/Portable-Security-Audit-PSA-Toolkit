@@ -51,10 +51,25 @@ class AppPaths:
         return self.root / "tools" / os_family
 
 
+ROOT_MARKER = Path("config") / "default.toml"
+
+
 def discover_root() -> Path:
-    """Frozen build: folder of the executable. Else $PSA_HOME. Else the repo root."""
+    """Locate the portable root.
+
+    Frozen build: the nearest of the executable's folder, its parent or
+    grandparent that contains config/default.toml (the Windows .exe sits in the
+    drive root; the Linux build sits in linux/PortableSecurityAudit/). The
+    environment is deliberately not consulted for frozen builds, so settings on
+    the target machine cannot redirect the tool. Source runs: $PSA_HOME (set by
+    the launcher), else the repository root.
+    """
     if getattr(sys, "frozen", False):
-        return Path(sys.executable).resolve().parent
+        exe_dir = Path(sys.executable).resolve().parent
+        for candidate in (exe_dir, exe_dir.parent, exe_dir.parent.parent):
+            if (candidate / ROOT_MARKER).is_file():
+                return candidate
+        return exe_dir
     env = os.environ.get("PSA_HOME")
     if env:
         return Path(env).expanduser().resolve()

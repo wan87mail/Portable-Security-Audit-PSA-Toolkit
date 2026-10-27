@@ -19,7 +19,7 @@ MANIFEST_NAME = "manifest.json"
 
 # Directories that legitimately change on the drive and are not verified.
 EXCLUDED_DIRS = {"reports", "logs", "checksums", ".git", "__pycache__", ".pytest_cache",
-                 ".venv", "venv", "build", "dist", ".mypy_cache", ".ruff_cache", "node_modules"}
+                 ".venv", "venv", ".build-venv", "build", "dist", ".mypy_cache", ".ruff_cache", "node_modules"}
 EXCLUDED_FILES = {"local.toml", ".gitkeep"}
 EXCLUDED_SUFFIXES = {".pyc", ".pyo"}
 

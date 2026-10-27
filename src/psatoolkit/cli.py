@@ -352,6 +352,61 @@ def cmd_import_baseline(tk: Toolkit, args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def selftest_results() -> list[tuple[str, bool, str, bool]]:
+    """(component, ok, detail, required) for the runtime pieces a build must contain."""
+    import csv
+    import hashlib
+    import io
+    import zlib
+
+    results: list[tuple[str, bool, str, bool]] = []
+
+    def probe(name: str, required: bool, fn) -> None:
+        try:
+            results.append((name, True, str(fn() or "ok"), required))
+        except Exception as exc:  # noqa: BLE001 - reported to the operator
+            results.append((name, False, f"{type(exc).__name__}: {exc}", required))
+
+    probe("sha256", True, lambda: hashlib.sha256(b"psa").hexdigest()[:12])
+    probe("zlib (PDF compression)", True, lambda: len(zlib.compress(b"x" * 100)))
+    probe("csv", True, lambda: csv.writer(io.StringIO()) and "ok")
+
+    def pdf():
+        from psatoolkit.reporting.pdfgen import PdfDocument
+        doc = PdfDocument("selftest")
+        doc.text(doc.new_page(), 50, 50, "selftest")
+        data = doc.to_bytes()
+        assert data.startswith(b"%PDF-1.4")
+        return f"{len(data)} bytes"
+    probe("PDF writer", True, pdf)
+
+    def config():
+        from psatoolkit.core.config import build_config
+        return build_config({}).reporting.formats
+    probe("configuration", True, config)
+
+    def tk():
+        import tkinter
+        interp = tkinter.Tcl()               # needs no display
+        return f"Tcl/Tk {interp.eval('info patchlevel')}"
+    probe("GUI (Tkinter)", False, tk)
+    return results
+
+
+def cmd_selftest(tk_: Toolkit, args: argparse.Namespace) -> int:
+    results = selftest_results()
+    frozen = getattr(sys, "frozen", False)
+    _print(f"{TOOL_NAME} {__version__} self-test ({'frozen build' if frozen else 'source'}; Python "
+           f"{sys.version.split()[0]}; root {tk_.paths.root})")
+    failed = False
+    for name, ok, detail, required in results:
+        required = required or (args.require_gui and name.startswith("GUI"))
+        _print(f"  [{'OK' if ok else ('FAIL' if required else 'WARN')}] {name}: {detail}")
+        failed |= required and not ok
+    _print("Self-test " + ("FAILED" if failed else "passed"))
+    return EXIT_ERROR if failed else EXIT_OK
+
+
 def cmd_build_manifest(tk: Toolkit, args: argparse.Namespace) -> int:
     path, digest = write_manifest(tk.paths.root, __version__)
     _print(f"Wrote {path}\nManifest SHA-256: {digest}\nRecord this value in the release notes / change ticket.")
@@ -415,6 +470,8 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--output", help="directory to look in (default: USB reports/)")
     sub.add_parser("build-manifest", help="(release preparation) write checksums/manifest.json")
     sub.add_parser("baselines", help="list imported security baselines")
+    st = sub.add_parser("selftest", help="check that this build contains every runtime component")
+    st.add_argument("--require-gui", action="store_true", help="fail if the Tkinter GUI is unavailable")
     ib = sub.add_parser("import-baseline", help="validate a baseline JSON file and copy it to baselines/")
     ib.add_argument("file")
     ib.add_argument("--replace", action="store_true", help="overwrite an existing baseline with the same name")
@@ -425,11 +482,22 @@ COMMANDS = {
     "gui": cmd_gui, "info": cmd_info, "modules": cmd_modules, "audit": cmd_audit,
     "preview-scan": cmd_preview_scan, "verify": cmd_verify, "verify-report": cmd_verify_report,
     "export-report": cmd_export_report, "baselines": cmd_baselines, "import-baseline": cmd_import_baseline,
+    "selftest": cmd_selftest,
     "verify-log": cmd_verify_log, "reports": cmd_reports, "build-manifest": cmd_build_manifest,
 }
 
 
+def _safe_console() -> None:
+    """Never crash on characters the console encoding cannot show (e.g. cp1252 with redirected output)."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")  # type: ignore[union-attr]
+        except (AttributeError, ValueError):
+            pass
+
+
 def main(argv: Sequence[str] | None = None) -> int:
+    _safe_console()
     parser = build_parser()
     args = parser.parse_args(argv)
     command = args.command or "gui"

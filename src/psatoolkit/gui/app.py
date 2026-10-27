@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import queue
 import shutil
+import sys
 import threading
 import tkinter as tk
 import webbrowser
@@ -590,12 +591,32 @@ class Dashboard:
         self.root.destroy()
 
 
+def _release_own_console() -> None:
+    """Hide the console window when the frozen .exe was double-clicked (not when run from cmd).
+
+    GetConsoleProcessList returns 1 when this process is the only one attached,
+    i.e. Windows created the console just for us.
+    """
+    if not (sys.platform.startswith("win") and getattr(sys, "frozen", False)):
+        return
+    try:
+        import ctypes
+
+        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        pids = (ctypes.c_uint * 4)()
+        if kernel32.GetConsoleProcessList(pids, 4) == 1:
+            kernel32.FreeConsole()
+    except Exception:
+        pass
+
+
 def run_gui(toolkit: Toolkit) -> int:
     try:
         root = tk.Tk()
     except tk.TclError as exc:
         print(f"Cannot open a display ({exc}). Use the CLI instead: 'audit --help'.")
         return 1
+    _release_own_console()
     Dashboard(root, toolkit)
     root.mainloop()
     return 0
